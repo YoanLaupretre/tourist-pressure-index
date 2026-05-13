@@ -1,0 +1,2122 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Tourist Pressure Index — Où partir ce mois-ci ?</title>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-3EFBYX0PRQ"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+  gtag('config', 'G-3EFBYX0PRQ');
+</script>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: #f1f5f9; color: #1e293b; overflow: hidden; height: 100vh; }
+  header { padding: 14px 22px; background: #fff; border-bottom: 1px solid #e2e8f0; display: flex; align-items: center; justify-content: space-between; gap: 20px; box-shadow: 0 1px 2px rgba(15,23,42,0.04); }
+  h1 { font-size: 18px; font-weight: 600; letter-spacing: -0.3px; color: #0f172a; }
+  h1 .accent { color: #ea580c; }
+  .subtitle { font-size: 12px; color: #64748b; margin-top: 2px; }
+  .controls { display: flex; align-items: center; gap: 18px; }
+  .month-control, .mode-control { display: flex; align-items: center; gap: 10px; }
+  .month-control label, .mode-control label { font-size: 12px; color: #64748b; text-transform: uppercase; letter-spacing: 0.5px; }
+  .month-label { font-size: 14px; font-weight: 600; background: #fff7ed; padding: 5px 14px; border-radius: 6px; min-width: 80px; text-align: center; color: #ea580c; border: 1px solid #fed7aa; }
+  input[type=range] { width: 200px; accent-color: #ea580c; }
+  select.mode { font-size: 13px; padding: 5px 10px; border-radius: 6px; border: 1px solid #cbd5e1; background: #fff; color: #1e293b; cursor: pointer; }
+  main { display: grid; grid-template-columns: 1fr 380px; height: calc(100vh - 65px); }
+  #map { width: 100%; height: 100%; background: #e2e8f0; }
+  .leaflet-container { background: #e2e8f0; }
+  .sidebar { background: #fff; border-left: 1px solid #e2e8f0; overflow-y: auto; padding: 20px; }
+  .sidebar h2 { font-size: 13px; text-transform: uppercase; color: #64748b; margin-bottom: 12px; letter-spacing: 0.5px; }
+  .filters { background: #f8fafc; padding: 14px; border-radius: 8px; margin-bottom: 18px; border: 1px solid #e2e8f0; }
+  .filters-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+  .filters-head h3 { font-size: 11px; text-transform: uppercase; color: #64748b; letter-spacing: 0.5px; }
+  .filters-head .count { font-size: 11px; color: #0f172a; background: #e0f2fe; padding: 2px 8px; border-radius: 10px; font-weight: 600; }
+  .filter-row { display: grid; grid-template-columns: 70px 1fr 32px; gap: 6px; align-items: center; font-size: 11px; margin-bottom: 6px; color: #475569; }
+  .filter-row input[type=range] { width: 100%; height: 4px; accent-color: #ea580c; }
+  .filter-row .v { font-weight: 600; color: #0f172a; text-align: right; font-size: 11px; }
+  .filter-foot { display: flex; justify-content: space-between; align-items: center; margin-top: 8px; font-size: 11px; color: #64748b; }
+  .filter-foot label { display: flex; align-items: center; gap: 5px; cursor: pointer; }
+  .filter-foot button { background: #fff; border: 1px solid #cbd5e1; color: #475569; padding: 3px 9px; border-radius: 5px; cursor: pointer; font-size: 11px; }
+  .filter-foot button:hover { background: #f1f5f9; }
+  .city-list { display: flex; flex-direction: column; gap: 6px; margin-bottom: 24px; }
+  .city-row { display: flex; justify-content: space-between; align-items: center; padding: 10px 12px; background: #f8fafc; border-radius: 6px; cursor: pointer; border-left: 3px solid; transition: transform 0.15s, background 0.15s; }
+  .city-row:hover { background: #f1f5f9; transform: translateX(2px); }
+  .city-row .name { font-size: 13px; font-weight: 600; color: #0f172a; }
+  .city-row .country { font-size: 11px; color: #64748b; }
+  .city-row .score { font-size: 13px; font-weight: 700; }
+  .legend { background: #f8fafc; padding: 14px; border-radius: 8px; margin-bottom: 20px; border: 1px solid #e2e8f0; }
+  .legend h3 { font-size: 11px; text-transform: uppercase; color: #64748b; margin-bottom: 10px; letter-spacing: 0.5px; }
+  .legend-bar { height: 10px; border-radius: 5px; margin-bottom: 6px; }
+  .legend-bar.go { background: linear-gradient(90deg, #7f1d1d 0%, #b91c1c 10%, #ef4444 20%, #f97316 30%, #f59e0b 40%, #eab308 50%, #a3e635 60%, #65a30d 70%, #16a34a 80%, #15803d 100%); }
+  .legend-bar.pressure { background: linear-gradient(90deg, #15803d 0%, #16a34a 10%, #65a30d 20%, #a3e635 30%, #eab308 40%, #f59e0b 50%, #f97316 60%, #ef4444 70%, #b91c1c 80%, #7f1d1d 100%); }
+  .legend-labels { display: flex; justify-content: space-between; font-size: 10px; color: #64748b; }
+  .modal-backdrop { position: fixed; inset: 0; background: rgba(15,23,42,0.45); display: none; align-items: center; justify-content: center; z-index: 1000; padding: 30px; backdrop-filter: blur(2px); }
+  .modal-backdrop.active { display: flex; }
+  .modal { background: #fff; border-radius: 12px; max-width: 820px; width: 100%; max-height: 92vh; overflow-y: auto; padding: 28px; border: 1px solid #e2e8f0; box-shadow: 0 20px 40px -10px rgba(15,23,42,0.2); }
+  .modal-header { display: flex; justify-content: space-between; align-items: start; margin-bottom: 20px; }
+  .modal-title h2 { font-size: 24px; font-weight: 700; color: #0f172a; }
+  .modal-title .loc { font-size: 13px; color: #64748b; margin-top: 2px; }
+  .close-btn { background: #f1f5f9; border: none; color: #475569; width: 32px; height: 32px; border-radius: 8px; cursor: pointer; font-size: 16px; }
+  .close-btn:hover { background: #e2e8f0; }
+  .metrics { display: grid; grid-template-columns: repeat(8, 1fr); gap: 5px; margin-bottom: 16px; }
+  .metric { background: #f8fafc; padding: 10px 3px; border-radius: 8px; text-align: center; border: 1px solid #e2e8f0; }
+  .metric .value { font-size: 16px; font-weight: 700; color: #ea580c; }
+  .metric.go .value { color: #16a34a; }
+  .metric.bad .value { color: #dc2626; }
+  .metric.cool .value { color: #7c3aed; }
+  .metric.eco .value { color: #16a34a; }
+  .metric.visa .value { color: #0284c7; }
+  .metric .label { font-size: 9px; color: #64748b; margin-top: 4px; text-transform: uppercase; letter-spacing: 0.3px; line-height: 1.3; }
+  .breakdown { background: #f8fafc; padding: 14px; border-radius: 8px; margin-bottom: 16px; border: 1px solid #e2e8f0; }
+  .breakdown h3 { font-size: 11px; text-transform: uppercase; color: #64748b; margin-bottom: 10px; letter-spacing: 0.5px; }
+  .breakdown-row { display: flex; align-items: center; gap: 10px; margin-bottom: 6px; font-size: 12px; }
+  .breakdown-row .lbl { width: 130px; color: #475569; }
+  .breakdown-row .bar-wrap { flex: 1; background: #e2e8f0; height: 8px; border-radius: 4px; overflow: hidden; }
+  .breakdown-row .bar { height: 100%; border-radius: 4px; }
+  .breakdown-row .val { width: 40px; text-align: right; font-weight: 600; color: #0f172a; }
+  .chart-container { background: #f8fafc; padding: 16px; border-radius: 8px; margin-bottom: 14px; border: 1px solid #e2e8f0; }
+  .chart-container h3 { font-size: 12px; text-transform: uppercase; color: #64748b; margin-bottom: 10px; letter-spacing: 0.5px; }
+  .verdict { padding: 14px; border-radius: 8px; font-size: 13px; line-height: 1.5; color: #1e293b; }
+  .verdict.good { background: rgba(34,197,94,0.10); border-left: 3px solid #22c55e; }
+  .verdict.medium { background: rgba(234,179,8,0.12); border-left: 3px solid #eab308; }
+  .verdict.bad { background: rgba(239,68,68,0.10); border-left: 3px solid #ef4444; }
+  .leaflet-popup-content-wrapper { background: #fff; color: #1e293b; border-radius: 8px; box-shadow: 0 4px 12px rgba(15,23,42,0.15); }
+  .leaflet-popup-tip { background: #fff; }
+  .leaflet-popup-content { margin: 10px 14px; font-size: 12px; }
+  .leaflet-popup-content strong { color: #ea580c; }
+  .note { font-size: 11px; color: #64748b; margin-top: 14px; line-height: 1.4; }
+</style>
+</head>
+<body>
+<header>
+  <div>
+    <h1>Tourist <span class="accent">Pressure</span> Index</h1>
+    <div class="subtitle">Où partir ce mois-ci sans se marcher dessus ?</div>
+  </div>
+  <div class="controls">
+    <div class="mode-control">
+      <label>Vue</label>
+      <select class="mode" id="modeSelect">
+        <option value="go">Score Go (recommandation)</option>
+        <option value="cool">Cool / désirabilité</option>
+        <option value="eco">Score écologique</option>
+        <option value="visa">Visa / facilité d'accès</option>
+        <option value="pressure">Pression touristique</option>
+        <option value="temp">Température</option>
+        <option value="price">Prix /jour</option>
+      </select>
+    </div>
+    <div class="month-control">
+      <label>Mois</label>
+      <input type="range" id="monthSlider" min="1" max="12" value="5">
+      <div class="month-label" id="monthLabel">Mai</div>
+    </div>
+  </div>
+</header>
+<main>
+  <div id="map"></div>
+  <aside class="sidebar">
+    <div class="filters">
+      <div class="filters-head">
+        <h3>Filtres</h3>
+        <span class="count" id="filterCount">— destinations</span>
+      </div>
+      <div class="filter-row"><span>Go ≥</span><input type="range" id="fGo" min="0" max="100" value="0"><span class="v" id="vfGo">0</span></div>
+      <div class="filter-row"><span>Cool ≥</span><input type="range" id="fCool" min="0" max="100" value="0"><span class="v" id="vfCool">0</span></div>
+      <div class="filter-row"><span>Eco ≥</span><input type="range" id="fEco" min="0" max="100" value="0"><span class="v" id="vfEco">0</span></div>
+      <div class="filter-row"><span>Visa ≥</span><input type="range" id="fVisa" min="0" max="100" value="0"><span class="v" id="vfVisa">0</span></div>
+      <div class="filter-row"><span>Pression ≤</span><input type="range" id="fPress" min="0" max="100" value="100"><span class="v" id="vfPress">100</span></div>
+      <div class="filter-row"><span>Prix ≤</span><input type="range" id="fPrice" min="0" max="300" value="300"><span class="v" id="vfPrice">300€</span></div>
+      <div class="filter-foot">
+        <label><input type="checkbox" id="fRisk"> Inclure destinations à risque</label>
+        <button id="fReset">Reset</button>
+      </div>
+    </div>
+    <div class="legend">
+      <h3 id="legendTitle">Score Go</h3>
+      <div class="legend-bar go" id="legendBar"></div>
+      <div class="legend-labels" id="legendLabels">
+        <span>À éviter</span><span>Moyen</span><span>Idéal</span>
+      </div>
+    </div>
+    <h2 id="topTitle">Top destinations ce mois</h2>
+    <div class="city-list" id="topList"></div>
+    <h2 id="bottomTitle">À éviter ce mois</h2>
+    <div class="city-list" id="bottomList"></div>
+    <div class="note">Estimations à partir de sources publiques (UNWTO, offices nationaux, climat ERA5 type, indices Numbeo). Ordre de grandeur — pas de la donnée production.</div>
+  </aside>
+</main>
+
+<div class="modal-backdrop" id="modal">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title">
+        <h2 id="modalCity">—</h2>
+        <div class="loc" id="modalCountry">—</div>
+      </div>
+      <button class="close-btn" onclick="closeModal()">✕</button>
+    </div>
+    <div class="metrics">
+      <div class="metric go"><div class="value" id="mGo">—</div><div class="label">Score Go</div></div>
+      <div class="metric cool"><div class="value" id="mCool">—</div><div class="label">Cool</div></div>
+      <div class="metric eco"><div class="value" id="mEco">—</div><div class="label">Eco</div></div>
+      <div class="metric visa"><div class="value" id="mVisa">—</div><div class="label">Visa</div></div>
+      <div class="metric"><div class="value" id="mPressure">—</div><div class="label">Pression</div></div>
+      <div class="metric"><div class="value" id="mMonthly">—</div><div class="label">Visiteurs/mois</div></div>
+      <div class="metric"><div class="value" id="mTemp">—</div><div class="label">T° moy.</div></div>
+      <div class="metric"><div class="value" id="mPrice">—</div><div class="label">€/pers/jour</div></div>
+    </div>
+
+    <div class="breakdown">
+      <h3>Décomposition de la pression</h3>
+      <div class="breakdown-row"><span class="lbl">Saturation lits (40%)</span><div class="bar-wrap"><div class="bar" id="bBeds"></div></div><span class="val" id="vBeds">—</span></div>
+      <div class="breakdown-row"><span class="lbl">Densité urbaine (30%)</span><div class="bar-wrap"><div class="bar" id="bDens"></div></div><span class="val" id="vDens">—</span></div>
+      <div class="breakdown-row"><span class="lbl">Croisière (15%)</span><div class="bar-wrap"><div class="bar" id="bCruise"></div></div><span class="val" id="vCruise">—</span></div>
+      <div class="breakdown-row"><span class="lbl">Notoriété (15%)</span><div class="bar-wrap"><div class="bar" id="bFame"></div></div><span class="val" id="vFame">—</span></div>
+    </div>
+
+    <div class="chart-container">
+      <h3>Météo mensuelle</h3>
+      <canvas id="weatherChart" height="110"></canvas>
+    </div>
+    <div class="chart-container">
+      <h3>Score Go sur l'année</h3>
+      <canvas id="goChart" height="100"></canvas>
+    </div>
+    <div class="verdict" id="verdict"></div>
+  </div>
+</div>
+
+<script>
+// ============================================================
+// 1. PROFILS DE SAISONNALITÉ (multiplicateur du flux mensuel, moyenne ≈ 1)
+// ============================================================
+const PROFILES = {
+  med_beach:    [0.4, 0.4, 0.5, 0.7, 1.0, 1.4, 1.8, 1.9, 1.3, 0.8, 0.5, 0.5],
+  tropical_dry: [1.6, 1.6, 1.4, 1.0, 0.7, 0.5, 0.5, 0.6, 0.7, 0.9, 1.4, 1.7],
+  tropical_wet: [1.3, 1.2, 1.0, 0.8, 0.7, 0.8, 1.0, 1.1, 1.0, 0.9, 1.0, 1.2],
+  ski:          [1.7, 1.7, 1.4, 0.7, 0.4, 0.3, 0.4, 0.5, 0.6, 0.7, 0.9, 1.7],
+  euro_city:    [0.6, 0.6, 0.8, 1.0, 1.2, 1.4, 1.5, 1.5, 1.2, 1.0, 0.7, 0.8],
+  euro_xmas:    [0.6, 0.6, 0.8, 1.0, 1.1, 1.3, 1.4, 1.4, 1.1, 1.0, 0.9, 1.4],
+  us_city:      [0.7, 0.7, 0.9, 1.0, 1.1, 1.3, 1.4, 1.4, 1.1, 1.0, 1.0, 1.2],
+  japan:        [0.7, 0.7, 1.5, 1.6, 1.0, 0.8, 0.9, 0.9, 1.0, 1.3, 1.4, 0.8],
+  middle_east:  [1.2, 1.3, 1.3, 1.0, 0.8, 0.5, 0.5, 0.6, 0.8, 1.1, 1.4, 1.4],
+  south_hemi:   [1.5, 1.4, 1.2, 0.9, 0.7, 0.6, 0.6, 0.7, 0.9, 1.0, 1.2, 1.5],
+  africa_safari:[1.2, 1.1, 1.0, 0.9, 0.8, 0.9, 1.2, 1.3, 1.1, 1.0, 0.9, 1.1],
+  year_round:   [0.9, 0.9, 1.0, 1.0, 1.1, 1.1, 1.1, 1.1, 1.1, 1.0, 0.9, 1.0]
+};
+
+// ============================================================
+// 2. CLIMAT — 15 archétypes (T° moy °C, précipitations mm/mois, jours Jan→Déc)
+// ============================================================
+const CLIMATES = {
+  arctic:           { t:[-1,-1,0,3,7,10,12,11,8,4,1,-1],          p:[70,55,50,40,40,50,60,70,80,90,80,75] },
+  subarctic:        { t:[-3,-2,2,7,12,16,19,17,12,6,1,-2],        p:[45,35,30,35,40,55,70,70,55,55,55,50] },
+  oceanic:          { t:[5,6,8,10,14,17,19,19,16,12,8,6],          p:[60,50,50,50,55,55,55,60,60,75,80,75] },
+  continental_warm: { t:[-2,-1,4,10,16,19,21,20,15,9,3,-1],        p:[40,35,40,40,55,70,65,55,45,40,45,45] },
+  mediterranean:    { t:[9,10,12,15,19,24,27,27,23,18,13,10],      p:[60,50,45,40,30,15,5,10,40,70,75,70] },
+  mediterranean_h:  { t:[10,11,13,16,20,24,27,27,23,19,14,11],     p:[55,45,55,55,55,40,25,40,80,95,80,65] },
+  desert_hot:       { t:[14,16,20,25,30,33,35,35,32,27,21,16],     p:[8,5,5,3,1,0,0,0,0,3,7,12] },
+  desert_cold:      { t:[2,6,12,18,23,28,30,29,24,17,10,4],        p:[35,35,40,30,20,5,3,3,5,15,25,35] },
+  subtropical:      { t:[6,8,12,17,22,25,28,28,24,18,13,8],        p:[55,60,80,90,100,150,140,120,150,100,60,55] },
+  tropical_savanna: { t:[27,28,29,29,28,27,26,26,27,27,27,27],     p:[10,10,30,80,180,200,180,170,200,150,40,15] },
+  tropical_rain:    { t:[27,27,28,28,28,28,28,28,28,28,28,27],     p:[230,180,200,180,170,160,150,160,180,180,210,240] },
+  tropical_monsoon: { t:[24,25,28,30,30,28,27,27,27,27,25,24],     p:[5,10,25,55,150,500,650,550,300,80,30,10] },
+  highland:         { t:[14,14,14,14,13,12,12,13,13,14,14,13],     p:[80,90,110,120,80,40,30,50,80,150,140,100] },
+  sh_temperate:     { t:[22,22,20,17,14,11,11,12,14,17,19,21],     p:[35,40,55,80,100,100,85,80,55,50,40,35] },
+  sh_subtropical:   { t:[26,26,24,21,17,14,14,15,17,20,23,25],     p:[90,100,80,70,40,30,30,30,40,60,80,90] }
+};
+
+// ============================================================
+// 3. PRIX MOYEN /personne /jour par pays (€, voyageur "mid-range")
+//    Source: ordres de grandeur Numbeo / Budget-Your-Trip
+// ============================================================
+const PRICE = {
+  // Très cher
+  "Suisse":190, "Islande":175, "Norvège":160, "Liechtenstein":150, "Monaco":280, "Vatican":120, "Bahamas":170, "Maldives":260, "Seychelles":210,
+  // Cher
+  "France":115, "Royaume-Uni":130, "États-Unis":135, "Allemagne":100, "Japon":110, "Australie":120, "Nouv.-Zélande":110,
+  "Pays-Bas":110, "Belgique":100, "Suède":115, "Finlande":105, "Irlande":120, "Autriche":100, "Luxembourg":135, "Canada":115,
+  "Singapour":130, "Hong Kong":135, "Émirats AU":140, "Qatar":130, "Israël":125, "Brunei":80, "Koweït":100, "Bahreïn":95, "Danemark":150,
+  // Moyen-haut
+  "Espagne":75, "Italie":85, "Grèce":70, "Portugal":65, "Croatie":75, "Chypre":75, "Malte":75, "Saint-Marin":85, "Andorre":90,
+  "Corée du Sud":85, "Taïwan":65, "Chili":65, "Uruguay":70, "Costa Rica":75, "Panama":70, "Macao":95, "Barbade":150,
+  "Antigua-et-Barbuda":160, "Saint-Kitts-Nevis":140, "Dominique":110, "Sainte-Lucie":150, "Saint-Vincent":110, "Grenade":120,
+  "Trinité-et-Tobago":85, "Maurice":90, "Cap-Vert":70,
+  // Moyen
+  "Tchéquie":55, "Pologne":50, "Hongrie":55, "Slovaquie":55, "Estonie":65, "Lettonie":55, "Lituanie":55, "Slovénie":65,
+  "Roumanie":50, "Bulgarie":45, "Serbie":50, "Albanie":45, "Bosnie-Herz.":45, "Macédoine N.":40, "Kosovo":40, "Monténégro":50,
+  "Turquie":45, "Russie":50, "Bélarus":40, "Ukraine":35, "Géorgie":45, "Arménie":45, "Azerbaïdjan":50, "Moldavie":35,
+  "Mexique":55, "Argentine":50, "Brésil":55, "Colombie":50, "Pérou":45, "Équateur":45, "Bolivie":35, "Paraguay":40,
+  "Salvador":50, "Guatemala":45, "Honduras":40, "Nicaragua":35, "Cuba":55, "Rép. dominicaine":70, "Jamaïque":80, "Belize":75,
+  "Haïti":50, "Guyana":50, "Suriname":55, "Venezuela":40,
+  "Afrique du Sud":60, "Namibie":70, "Botswana":85, "Maroc":50, "Tunisie":45, "Jordanie":55, "Liban":60, "Iran":40,
+  "Arabie saoudite":85, "Oman":80, "Thaïlande":45, "Malaisie":50, "Indonésie":40, "Sri Lanka":40, "Vietnam":35, "Philippines":50,
+  "Mongolie":45, "Kazakhstan":50, "Ouzbékistan":40, "Kirghizistan":35, "Tadjikistan":30, "Turkménistan":40,
+  // Bas
+  "Inde":30, "Pakistan":25, "Bangladesh":25, "Népal":30, "Bhoutan":250, "Cambodge":30, "Laos":35, "Birmanie":35,
+  "Égypte":40, "Algérie":40, "Libye":45, "Syrie":30, "Irak":40, "Yémen":25, "Afghanistan":25, "Palestine":45,
+  "Sénégal":50, "Côte d'Ivoire":55, "Ghana":50, "Nigeria":55, "Kenya":65, "Ouganda":50, "Rwanda":60, "Tanzanie":70,
+  "Madagascar":40, "Zimbabwe":50, "Zambie":55, "Mozambique":50, "Éthiopie":40, "Soudan":40, "Soudan du Sud":50,
+  "Mali":35, "Niger":30, "Tchad":30, "Burkina Faso":30, "Mauritanie":35, "Gambie":35, "Guinée":35, "Guinée-Bissau":30,
+  "Sierra Leone":35, "Liberia":35, "Togo":35, "Bénin":35, "Cameroun":40, "Centrafrique":35, "Gabon":70, "Congo":60,
+  "RD Congo":50, "Angola":80, "Comores":50, "Djibouti":70, "Érythrée":35, "Somalie":35, "Burundi":35, "Malawi":35,
+  "Lesotho":40, "Eswatini":45, "S. Tomé-et-Prín.":60, "Guinée équat.":75,
+  "Corée du Nord":80, "Timor oriental":40,
+  // Océanie
+  "Fidji":80, "Papouasie-N.-G.":60, "Salomon":55, "Vanuatu":80, "Samoa":70, "Tonga":60, "Kiribati":50, "Tuvalu":50,
+  "Nauru":80, "Micronésie":70, "Marshall":75, "Palaos":150
+};
+const DEFAULT_PRICE = 50;
+function getPrice(country) { return PRICE[country] ?? DEFAULT_PRICE; }
+
+// ============================================================
+// 4. NOTORIÉTÉ ("iconique") — 0-100
+// ============================================================
+const FAME = {
+  "Paris":100, "Venise":98, "Rome":96, "Londres":96, "New York":98, "Tokyo":94, "Barcelone":94, "Santorin":92,
+  "Dubaï":90, "Bangkok":88, "Las Vegas":85, "Amsterdam":86, "Florence":86, "Kyoto":88, "Prague":85, "Sydney":85,
+  "Marrakech":82, "Istanbul":85, "Athènes":84, "Bali":86, "Le Cap":80, "Rio de Janeiro":85, "Reykjavík":80,
+  "Cancún":78, "Phuket":78, "Munich":76, "Vienne":78, "Berlin":80, "Madrid":78, "Lisbonne":78, "Dublin":74,
+  "Orlando":80, "Miami":80, "Los Angeles":85, "San Francisco":80, "Dubrovnik":78, "Édimbourg":72, "Copenhague":72,
+  "Stockholm":70, "Singapour":80, "Hong Kong":78, "Macao":68, "Séoul":78, "Hanoï":62, "La Havane":68, "Buenos Aires":68
+};
+// Notoriété par défaut: log basé sur visiteurs annuels
+function fameScore(city) {
+  if (FAME[city.n]) return FAME[city.n];
+  return Math.min(70, Math.max(15, 20 + 20 * Math.log10(city.v + 0.1)));
+}
+
+// ============================================================
+// 5. CROISIÈRE — escales annuelles (M passagers/an, day-trippers)
+// ============================================================
+const CRUISE = {
+  "Nassau":3.5, "Cozumel":4.0, "Saint-Domingue":1.2, "La Havane":0.5, "Kingston":1.0, "Bridgetown":0.9,
+  "Saint John's":0.8, "Basseterre":1.0, "Castries":0.9, "Saint George's":0.5, "Roseau":0.4, "Kingstown":0.3,
+  "Port-d'Espagne":0.2, "Cancún":1.0, "Miami":7.0, "New York":1.5, "Los Angeles":1.0,
+  "Barcelone":3.0, "Venise":1.5, "Rome":2.5, "Naples":1.5, "Nice":0.8, "La Valette":0.9, "Istanbul":0.5,
+  "Athènes":1.3, "Santorin":1.2, "Dubrovnik":1.0, "Lisbonne":0.7, "Stockholm":0.7, "Copenhague":0.9, "Tallinn":0.6,
+  "Helsinki":0.5, "Oslo":0.4, "Reykjavík":0.3, "Sydney":0.4, "Singapour":1.8, "Hong Kong":0.5, "Phuket":0.3,
+  "Le Cap":0.3, "Dubaï":1.0
+};
+function cruiseAnnual(city) { return CRUISE[city.n] ?? 0; }
+
+// ============================================================
+// 6. DURÉE DE SÉJOUR moyenne (nuits) par profil
+// ============================================================
+const STAY_BY_PROFILE = {
+  med_beach: 4.5, tropical_dry: 7, tropical_wet: 6, ski: 5.5, euro_city: 2.8, euro_xmas: 3,
+  us_city: 3.5, japan: 4, middle_east: 3.5, south_hemi: 4, africa_safari: 7, year_round: 3.5
+};
+
+// ============================================================
+// 7. CITIES — 234 destinations, ~199 pays. cl = climat archétype
+// ============================================================
+const CITIES = [
+  // Europe
+  { n:"Paris",          c:"France",            lat:48.86, lon:2.35,    v:35.0, p:2.1,   pr:"euro_city",   cl:"oceanic" },
+  { n:"Lyon",           c:"France",            lat:45.76, lon:4.84,    v:6.0,  p:0.52,  pr:"euro_city",   cl:"oceanic" },
+  { n:"Nice",           c:"France",            lat:43.70, lon:7.27,    v:5.0,  p:0.34,  pr:"med_beach",   cl:"mediterranean" },
+  { n:"Chamonix",       c:"France",            lat:45.92, lon:6.87,    v:2.0,  p:0.009, pr:"ski",         cl:"continental_warm" },
+  { n:"Londres",        c:"Royaume-Uni",       lat:51.51, lon:-0.13,   v:20.0, p:9.0,   pr:"euro_city",   cl:"oceanic" },
+  { n:"Édimbourg",      c:"Royaume-Uni",       lat:55.95, lon:-3.19,   v:4.0,  p:0.55,  pr:"euro_city",   cl:"oceanic" },
+  { n:"Dublin",         c:"Irlande",           lat:53.35, lon:-6.26,   v:5.5,  p:0.59,  pr:"euro_city",   cl:"oceanic" },
+  { n:"Madrid",         c:"Espagne",           lat:40.42, lon:-3.70,   v:10.0, p:3.3,   pr:"euro_city",   cl:"mediterranean" },
+  { n:"Barcelone",      c:"Espagne",           lat:41.39, lon:2.17,    v:12.0, p:1.6,   pr:"med_beach",   cl:"mediterranean_h" },
+  { n:"Lisbonne",       c:"Portugal",          lat:38.72, lon:-9.14,   v:7.0,  p:0.55,  pr:"euro_city",   cl:"mediterranean" },
+  { n:"Porto",          c:"Portugal",          lat:41.15, lon:-8.61,   v:3.5,  p:0.24,  pr:"euro_city",   cl:"mediterranean" },
+  { n:"Rome",           c:"Italie",            lat:41.90, lon:12.50,   v:10.0, p:2.8,   pr:"med_beach",   cl:"mediterranean" },
+  { n:"Venise",         c:"Italie",            lat:45.44, lon:12.32,   v:25.0, p:0.26,  pr:"med_beach",   cl:"mediterranean_h" },
+  { n:"Florence",       c:"Italie",            lat:43.77, lon:11.25,   v:5.0,  p:0.38,  pr:"med_beach",   cl:"mediterranean" },
+  { n:"Milan",          c:"Italie",            lat:45.46, lon:9.19,    v:9.0,  p:1.4,   pr:"euro_city",   cl:"continental_warm" },
+  { n:"Naples",         c:"Italie",            lat:40.85, lon:14.27,   v:4.0,  p:0.95,  pr:"med_beach",   cl:"mediterranean" },
+  { n:"Amsterdam",      c:"Pays-Bas",          lat:52.37, lon:4.90,    v:9.0,  p:0.9,   pr:"euro_city",   cl:"oceanic" },
+  { n:"Bruxelles",      c:"Belgique",          lat:50.85, lon:4.35,    v:9.5,  p:1.2,   pr:"euro_city",   cl:"oceanic" },
+  { n:"Luxembourg",     c:"Luxembourg",        lat:49.61, lon:6.13,    v:1.2,  p:0.13,  pr:"euro_city",   cl:"oceanic" },
+  { n:"Berlin",         c:"Allemagne",         lat:52.52, lon:13.40,   v:14.0, p:3.7,   pr:"euro_city",   cl:"continental_warm" },
+  { n:"Munich",         c:"Allemagne",         lat:48.14, lon:11.58,   v:8.0,  p:1.5,   pr:"euro_xmas",   cl:"continental_warm" },
+  { n:"Vienne",         c:"Autriche",          lat:48.21, lon:16.37,   v:8.0,  p:1.9,   pr:"euro_xmas",   cl:"continental_warm" },
+  { n:"Zurich",         c:"Suisse",            lat:47.37, lon:8.55,    v:3.0,  p:0.43,  pr:"euro_city",   cl:"continental_warm" },
+  { n:"Zermatt",        c:"Suisse",            lat:46.02, lon:7.75,    v:1.5,  p:0.006, pr:"ski",         cl:"continental_warm" },
+  { n:"Vaduz",          c:"Liechtenstein",     lat:47.14, lon:9.52,    v:0.08, p:0.006, pr:"euro_city",   cl:"continental_warm" },
+  { n:"Monaco",         c:"Monaco",            lat:43.74, lon:7.42,    v:0.34, p:0.039, pr:"med_beach",   cl:"mediterranean" },
+  { n:"Andorre-la-V.",  c:"Andorre",           lat:42.51, lon:1.52,    v:3.0,  p:0.08,  pr:"ski",         cl:"continental_warm" },
+  { n:"Prague",         c:"Tchéquie",          lat:50.08, lon:14.44,   v:8.0,  p:1.3,   pr:"euro_xmas",   cl:"continental_warm" },
+  { n:"Bratislava",     c:"Slovaquie",         lat:48.15, lon:17.11,   v:2.3,  p:0.44,  pr:"euro_city",   cl:"continental_warm" },
+  { n:"Budapest",       c:"Hongrie",           lat:47.50, lon:19.04,   v:4.5,  p:1.7,   pr:"euro_city",   cl:"continental_warm" },
+  { n:"Varsovie",       c:"Pologne",           lat:52.23, lon:21.01,   v:3.5,  p:1.8,   pr:"euro_city",   cl:"continental_warm" },
+  { n:"Ljubljana",      c:"Slovénie",          lat:46.06, lon:14.51,   v:1.5,  p:0.30,  pr:"euro_city",   cl:"continental_warm" },
+  { n:"Zagreb",         c:"Croatie",           lat:45.81, lon:15.98,   v:1.4,  p:0.77,  pr:"euro_city",   cl:"continental_warm" },
+  { n:"Dubrovnik",      c:"Croatie",           lat:42.65, lon:18.09,   v:1.5,  p:0.041, pr:"med_beach",   cl:"mediterranean" },
+  { n:"Sarajevo",       c:"Bosnie-Herz.",      lat:43.86, lon:18.41,   v:0.75, p:0.41,  pr:"euro_city",   cl:"continental_warm" },
+  { n:"Belgrade",       c:"Serbie",            lat:44.79, lon:20.45,   v:1.5,  p:1.4,   pr:"euro_city",   cl:"continental_warm" },
+  { n:"Pristina",       c:"Kosovo",            lat:42.66, lon:21.16,   v:0.30, p:0.20,  pr:"euro_city",   cl:"continental_warm" },
+  { n:"Podgorica",      c:"Monténégro",        lat:42.44, lon:19.26,   v:0.40, p:0.19,  pr:"med_beach",   cl:"mediterranean" },
+  { n:"Skopje",         c:"Macédoine N.",      lat:42.00, lon:21.43,   v:0.55, p:0.59,  pr:"euro_city",   cl:"continental_warm" },
+  { n:"Tirana",         c:"Albanie",           lat:41.33, lon:19.82,   v:1.2,  p:0.42,  pr:"med_beach",   cl:"mediterranean" },
+  { n:"Athènes",        c:"Grèce",             lat:37.98, lon:23.73,   v:6.0,  p:3.0,   pr:"med_beach",   cl:"mediterranean" },
+  { n:"Santorin",       c:"Grèce",             lat:36.39, lon:25.46,   v:2.0,  p:0.015, pr:"med_beach",   cl:"mediterranean" },
+  { n:"Sofia",          c:"Bulgarie",          lat:42.70, lon:23.32,   v:1.5,  p:1.2,   pr:"euro_city",   cl:"continental_warm" },
+  { n:"Bucarest",       c:"Roumanie",          lat:44.43, lon:26.10,   v:2.0,  p:1.7,   pr:"euro_city",   cl:"continental_warm" },
+  { n:"Chișinău",       c:"Moldavie",          lat:47.01, lon:28.86,   v:0.20, p:0.50,  pr:"euro_city",   cl:"continental_warm" },
+  { n:"Kyiv",           c:"Ukraine",           lat:50.45, lon:30.52,   v:1.0,  p:2.9,   pr:"euro_city",   cl:"continental_warm" },
+  { n:"Minsk",          c:"Bélarus",           lat:53.90, lon:27.57,   v:0.40, p:2.0,   pr:"euro_city",   cl:"subarctic" },
+  { n:"Moscou",         c:"Russie",            lat:55.76, lon:37.62,   v:5.0,  p:12.6,  pr:"euro_xmas",   cl:"subarctic" },
+  { n:"Vilnius",        c:"Lituanie",          lat:54.69, lon:25.28,   v:1.2,  p:0.59,  pr:"euro_city",   cl:"subarctic" },
+  { n:"Riga",           c:"Lettonie",          lat:56.95, lon:24.11,   v:1.4,  p:0.62,  pr:"euro_city",   cl:"subarctic" },
+  { n:"Tallinn",        c:"Estonie",           lat:59.44, lon:24.75,   v:2.0,  p:0.45,  pr:"euro_xmas",   cl:"subarctic" },
+  { n:"Helsinki",       c:"Finlande",          lat:60.17, lon:24.94,   v:2.5,  p:0.66,  pr:"euro_city",   cl:"subarctic" },
+  { n:"Stockholm",      c:"Suède",             lat:59.33, lon:18.07,   v:3.5,  p:0.98,  pr:"euro_city",   cl:"subarctic" },
+  { n:"Oslo",           c:"Norvège",           lat:59.91, lon:10.75,   v:2.0,  p:0.70,  pr:"euro_city",   cl:"subarctic" },
+  { n:"Copenhague",     c:"Danemark",          lat:55.68, lon:12.57,   v:4.5,  p:0.66,  pr:"euro_city",   cl:"oceanic" },
+  { n:"Reykjavík",      c:"Islande",           lat:64.13, lon:-21.94,  v:2.0,  p:0.13,  pr:"euro_city",   cl:"arctic" },
+  { n:"La Valette",     c:"Malte",             lat:35.90, lon:14.51,   v:2.5,  p:0.006, pr:"med_beach",   cl:"mediterranean" },
+  { n:"Nicosie",        c:"Chypre",            lat:35.17, lon:33.36,   v:4.0,  p:0.27,  pr:"med_beach",   cl:"mediterranean" },
+  { n:"Saint-Marin",    c:"Saint-Marin",       lat:43.94, lon:12.45,   v:0.07, p:0.034, pr:"euro_city",   cl:"mediterranean" },
+  { n:"Vatican",        c:"Vatican",           lat:41.90, lon:12.45,   v:7.0,  p:0.001, pr:"euro_city",   cl:"mediterranean" },
+  // Amérique du Nord
+  { n:"New York",       c:"États-Unis",        lat:40.71, lon:-74.01,  v:60.0, p:8.5,   pr:"us_city",     cl:"subtropical" },
+  { n:"Las Vegas",      c:"États-Unis",        lat:36.17, lon:-115.14, v:42.0, p:0.65,  pr:"us_city",     cl:"desert_hot" },
+  { n:"Orlando",        c:"États-Unis",        lat:28.54, lon:-81.38,  v:75.0, p:0.31,  pr:"us_city",     cl:"subtropical" },
+  { n:"Miami",          c:"États-Unis",        lat:25.76, lon:-80.19,  v:27.0, p:0.45,  pr:"tropical_dry",cl:"subtropical" },
+  { n:"Los Angeles",    c:"États-Unis",        lat:34.05, lon:-118.24, v:50.0, p:4.0,   pr:"us_city",     cl:"mediterranean" },
+  { n:"San Francisco",  c:"États-Unis",        lat:37.77, lon:-122.42, v:25.0, p:0.87,  pr:"us_city",     cl:"mediterranean" },
+  { n:"Washington DC",  c:"États-Unis",        lat:38.91, lon:-77.04,  v:23.0, p:0.71,  pr:"us_city",     cl:"subtropical" },
+  { n:"Toronto",        c:"Canada",            lat:43.65, lon:-79.38,  v:11.0, p:2.8,   pr:"us_city",     cl:"continental_warm" },
+  { n:"Mexico",         c:"Mexique",           lat:19.43, lon:-99.13,  v:11.0, p:9.2,   pr:"tropical_dry",cl:"highland" },
+  { n:"Cancún",         c:"Mexique",           lat:21.16, lon:-86.85,  v:6.0,  p:0.9,   pr:"tropical_dry",cl:"tropical_savanna" },
+  // Amérique centrale & Caraïbes
+  { n:"Guatemala",      c:"Guatemala",         lat:14.63, lon:-90.51,  v:2.5,  p:2.9,   pr:"tropical_dry",cl:"tropical_savanna" },
+  { n:"Belmopan",       c:"Belize",            lat:17.25, lon:-88.77,  v:0.50, p:0.020, pr:"tropical_dry",cl:"tropical_savanna" },
+  { n:"Tegucigalpa",    c:"Honduras",          lat:14.07, lon:-87.19,  v:0.70, p:1.2,   pr:"tropical_dry",cl:"tropical_savanna" },
+  { n:"San Salvador",   c:"Salvador",          lat:13.69, lon:-89.22,  v:2.5,  p:1.8,   pr:"tropical_dry",cl:"tropical_savanna" },
+  { n:"Managua",        c:"Nicaragua",         lat:12.11, lon:-86.24,  v:1.3,  p:1.0,   pr:"tropical_dry",cl:"tropical_savanna" },
+  { n:"San José",       c:"Costa Rica",        lat:9.93,  lon:-84.08,  v:3.0,  p:0.34,  pr:"tropical_dry",cl:"tropical_savanna" },
+  { n:"Panama",         c:"Panama",            lat:8.97,  lon:-79.53,  v:2.0,  p:0.88,  pr:"tropical_dry",cl:"tropical_savanna" },
+  { n:"La Havane",      c:"Cuba",              lat:23.13, lon:-82.36,  v:4.0,  p:2.1,   pr:"tropical_dry",cl:"tropical_savanna" },
+  { n:"Saint-Domingue", c:"Rép. dominicaine",  lat:18.47, lon:-69.89,  v:7.0,  p:1.0,   pr:"tropical_dry",cl:"tropical_savanna" },
+  { n:"Port-au-Prince", c:"Haïti",             lat:18.59, lon:-72.31,  v:0.45, p:1.2,   pr:"tropical_dry",cl:"tropical_savanna" },
+  { n:"Kingston",       c:"Jamaïque",          lat:18.01, lon:-76.79,  v:2.5,  p:0.66,  pr:"tropical_dry",cl:"tropical_savanna" },
+  { n:"Nassau",         c:"Bahamas",           lat:25.05, lon:-77.35,  v:7.0,  p:0.27,  pr:"tropical_dry",cl:"tropical_savanna" },
+  { n:"Bridgetown",     c:"Barbade",           lat:13.10, lon:-59.62,  v:0.70, p:0.11,  pr:"tropical_dry",cl:"tropical_savanna" },
+  { n:"Saint John's",   c:"Antigua-et-Barbuda",lat:17.12, lon:-61.85,  v:0.30, p:0.005, pr:"tropical_dry",cl:"tropical_savanna" },
+  { n:"Basseterre",     c:"Saint-Kitts-Nevis", lat:17.30, lon:-62.72,  v:0.12, p:0.013, pr:"tropical_dry",cl:"tropical_savanna" },
+  { n:"Roseau",         c:"Dominique",         lat:15.31, lon:-61.39,  v:0.08, p:0.015, pr:"tropical_dry",cl:"tropical_rain" },
+  { n:"Castries",       c:"Sainte-Lucie",      lat:14.01, lon:-60.99,  v:0.40, p:0.020, pr:"tropical_dry",cl:"tropical_savanna" },
+  { n:"Kingstown",      c:"Saint-Vincent",     lat:13.16, lon:-61.22,  v:0.08, p:0.013, pr:"tropical_dry",cl:"tropical_savanna" },
+  { n:"Saint George's", c:"Grenade",           lat:12.05, lon:-61.75,  v:0.16, p:0.038, pr:"tropical_dry",cl:"tropical_savanna" },
+  { n:"Port-d'Espagne", c:"Trinité-et-Tobago", lat:10.65, lon:-61.52,  v:0.40, p:0.04,  pr:"tropical_dry",cl:"tropical_savanna" },
+  // Amérique du Sud
+  { n:"Caracas",        c:"Venezuela",         lat:10.49, lon:-66.88,  v:0.45, p:2.0,   pr:"tropical_dry",cl:"tropical_savanna" },
+  { n:"Bogotá",         c:"Colombie",          lat:4.71,  lon:-74.07,  v:4.5,  p:7.9,   pr:"tropical_dry",cl:"highland" },
+  { n:"Quito",          c:"Équateur",          lat:-0.18, lon:-78.47,  v:2.0,  p:1.9,   pr:"tropical_dry",cl:"highland" },
+  { n:"Lima",           c:"Pérou",             lat:-12.05,lon:-77.04,  v:4.5,  p:9.7,   pr:"south_hemi",  cl:"desert_cold" },
+  { n:"La Paz",         c:"Bolivie",           lat:-16.50,lon:-68.15,  v:1.2,  p:0.81,  pr:"south_hemi",  cl:"highland" },
+  { n:"Asunción",       c:"Paraguay",          lat:-25.26,lon:-57.58,  v:1.5,  p:0.52,  pr:"south_hemi",  cl:"sh_subtropical" },
+  { n:"Montevideo",     c:"Uruguay",           lat:-34.90,lon:-56.16,  v:3.5,  p:1.4,   pr:"south_hemi",  cl:"sh_temperate" },
+  { n:"Buenos Aires",   c:"Argentine",         lat:-34.60,lon:-58.38,  v:3.0,  p:3.0,   pr:"south_hemi",  cl:"sh_temperate" },
+  { n:"Santiago",       c:"Chili",             lat:-33.45,lon:-70.66,  v:4.5,  p:6.7,   pr:"south_hemi",  cl:"sh_temperate" },
+  { n:"Rio de Janeiro", c:"Brésil",            lat:-22.91,lon:-43.17,  v:6.0,  p:6.7,   pr:"south_hemi",  cl:"sh_subtropical" },
+  { n:"Brasília",       c:"Brésil",            lat:-15.79,lon:-47.88,  v:0.80, p:3.1,   pr:"south_hemi",  cl:"tropical_savanna" },
+  { n:"Georgetown",     c:"Guyana",            lat:6.80,  lon:-58.16,  v:0.32, p:0.20,  pr:"tropical_dry",cl:"tropical_rain" },
+  { n:"Paramaribo",     c:"Suriname",          lat:5.85,  lon:-55.20,  v:0.25, p:0.24,  pr:"tropical_dry",cl:"tropical_rain" },
+  // Asie de l'Est & SE
+  { n:"Tokyo",          c:"Japon",             lat:35.68, lon:139.69,  v:15.0, p:14.0,  pr:"japan",       cl:"subtropical" },
+  { n:"Kyoto",          c:"Japon",             lat:35.01, lon:135.77,  v:8.0,  p:1.46,  pr:"japan",       cl:"subtropical" },
+  { n:"Séoul",          c:"Corée du Sud",      lat:37.57, lon:126.98,  v:11.0, p:9.7,   pr:"japan",       cl:"continental_warm" },
+  { n:"Pyongyang",      c:"Corée du Nord",     lat:39.02, lon:125.75,  v:0.05, p:3.0,   pr:"japan",       cl:"continental_warm" },
+  { n:"Pékin",          c:"Chine",             lat:39.90, lon:116.41,  v:4.0,  p:21.5,  pr:"japan",       cl:"continental_warm" },
+  { n:"Shanghai",       c:"Chine",             lat:31.23, lon:121.47,  v:9.0,  p:24.0,  pr:"japan",       cl:"subtropical" },
+  { n:"Hong Kong",      c:"Hong Kong",         lat:22.32, lon:114.17,  v:14.0, p:7.4,   pr:"year_round",  cl:"subtropical" },
+  { n:"Macao",          c:"Macao",             lat:22.20, lon:113.55,  v:18.0, p:0.7,   pr:"year_round",  cl:"subtropical" },
+  { n:"Taipei",         c:"Taïwan",            lat:25.03, lon:121.57,  v:7.0,  p:2.6,   pr:"japan",       cl:"subtropical" },
+  { n:"Oulan-Bator",    c:"Mongolie",          lat:47.92, lon:106.92,  v:0.60, p:1.5,   pr:"africa_safari",cl:"desert_cold" },
+  { n:"Hanoï",          c:"Vietnam",           lat:21.03, lon:105.85,  v:6.0,  p:8.0,   pr:"tropical_dry",cl:"tropical_monsoon" },
+  { n:"Vientiane",      c:"Laos",              lat:17.97, lon:102.61,  v:0.90, p:0.95,  pr:"tropical_dry",cl:"tropical_savanna" },
+  { n:"Phnom Penh",     c:"Cambodge",          lat:11.55, lon:104.92,  v:2.0,  p:2.1,   pr:"tropical_dry",cl:"tropical_savanna" },
+  { n:"Bangkok",        c:"Thaïlande",         lat:13.75, lon:100.50,  v:22.0, p:10.0,  pr:"tropical_dry",cl:"tropical_savanna" },
+  { n:"Phuket",         c:"Thaïlande",         lat:7.88,  lon:98.39,   v:9.0,  p:0.4,   pr:"tropical_dry",cl:"tropical_rain" },
+  { n:"Naypyidaw",      c:"Birmanie",          lat:19.74, lon:96.08,   v:0.60, p:0.92,  pr:"tropical_dry",cl:"tropical_savanna" },
+  { n:"Kuala Lumpur",   c:"Malaisie",          lat:3.14,  lon:101.69,  v:14.0, p:1.8,   pr:"year_round",  cl:"tropical_rain" },
+  { n:"Singapour",      c:"Singapour",         lat:1.35,  lon:103.82,  v:14.0, p:5.7,   pr:"year_round",  cl:"tropical_rain" },
+  { n:"Jakarta",        c:"Indonésie",         lat:-6.21, lon:106.85,  v:2.5,  p:10.6,  pr:"tropical_wet",cl:"tropical_rain" },
+  { n:"Bali",           c:"Indonésie",         lat:-8.34, lon:115.09,  v:6.0,  p:0.7,   pr:"tropical_dry",cl:"tropical_savanna" },
+  { n:"Manille",        c:"Philippines",       lat:14.60, lon:120.98,  v:5.0,  p:13.5,  pr:"tropical_dry",cl:"tropical_savanna" },
+  { n:"Bandar Seri B.", c:"Brunei",            lat:4.94,  lon:114.95,  v:0.30, p:0.10,  pr:"tropical_wet",cl:"tropical_rain" },
+  { n:"Dili",           c:"Timor oriental",    lat:-8.56, lon:125.58,  v:0.08, p:0.28,  pr:"tropical_dry",cl:"tropical_savanna" },
+  // Asie centrale & du sud
+  { n:"Astana",         c:"Kazakhstan",        lat:51.17, lon:71.45,   v:1.5,  p:1.2,   pr:"euro_xmas",   cl:"continental_warm" },
+  { n:"Bichkek",        c:"Kirghizistan",      lat:42.87, lon:74.59,   v:0.50, p:1.1,   pr:"euro_city",   cl:"desert_cold" },
+  { n:"Tachkent",       c:"Ouzbékistan",       lat:41.30, lon:69.27,   v:6.0,  p:2.5,   pr:"middle_east", cl:"desert_cold" },
+  { n:"Douchanbé",      c:"Tadjikistan",       lat:38.56, lon:68.79,   v:0.80, p:0.86,  pr:"middle_east", cl:"desert_cold" },
+  { n:"Achgabat",       c:"Turkménistan",      lat:37.95, lon:58.38,   v:0.10, p:1.0,   pr:"middle_east", cl:"desert_hot" },
+  { n:"Kaboul",         c:"Afghanistan",       lat:34.53, lon:69.17,   v:0.05, p:4.6,   pr:"middle_east", cl:"desert_cold" },
+  { n:"Islamabad",      c:"Pakistan",          lat:33.69, lon:73.05,   v:1.2,  p:1.1,   pr:"middle_east", cl:"subtropical" },
+  { n:"New Delhi",      c:"Inde",              lat:28.61, lon:77.21,   v:6.5,  p:32.0,  pr:"tropical_dry",cl:"subtropical" },
+  { n:"Mumbai",         c:"Inde",              lat:19.08, lon:72.88,   v:5.0,  p:20.4,  pr:"tropical_dry",cl:"tropical_monsoon" },
+  { n:"Katmandou",      c:"Népal",             lat:27.72, lon:85.32,   v:1.2,  p:1.4,   pr:"tropical_dry",cl:"subtropical" },
+  { n:"Thimphou",       c:"Bhoutan",           lat:27.47, lon:89.64,   v:0.10, p:0.12,  pr:"tropical_dry",cl:"highland" },
+  { n:"Dacca",          c:"Bangladesh",        lat:23.81, lon:90.41,   v:0.80, p:9.4,   pr:"tropical_dry",cl:"tropical_monsoon" },
+  { n:"Colombo",        c:"Sri Lanka",         lat:6.93,  lon:79.86,   v:1.5,  p:0.75,  pr:"tropical_dry",cl:"tropical_rain" },
+  { n:"Malé",           c:"Maldives",          lat:4.18,  lon:73.51,   v:1.8,  p:0.21,  pr:"tropical_dry",cl:"tropical_rain" },
+  // Caucase & Moyen-Orient
+  { n:"Tbilissi",       c:"Géorgie",           lat:41.72, lon:44.79,   v:5.0,  p:1.1,   pr:"euro_city",   cl:"continental_warm" },
+  { n:"Erevan",         c:"Arménie",           lat:40.18, lon:44.51,   v:2.0,  p:1.1,   pr:"euro_city",   cl:"continental_warm" },
+  { n:"Bakou",          c:"Azerbaïdjan",       lat:40.41, lon:49.87,   v:3.2,  p:2.3,   pr:"middle_east", cl:"desert_cold" },
+  { n:"Istanbul",       c:"Turquie",           lat:41.01, lon:28.98,   v:16.0, p:16.0,  pr:"med_beach",   cl:"mediterranean" },
+  { n:"Antalya",        c:"Turquie",           lat:36.90, lon:30.71,   v:13.0, p:2.5,   pr:"med_beach",   cl:"mediterranean" },
+  { n:"Téhéran",        c:"Iran",              lat:35.69, lon:51.39,   v:4.0,  p:9.0,   pr:"middle_east", cl:"desert_cold" },
+  { n:"Bagdad",         c:"Irak",              lat:33.31, lon:44.36,   v:0.90, p:7.5,   pr:"middle_east", cl:"desert_hot" },
+  { n:"Damas",          c:"Syrie",             lat:33.51, lon:36.29,   v:0.20, p:2.5,   pr:"middle_east", cl:"desert_hot" },
+  { n:"Beyrouth",       c:"Liban",             lat:33.89, lon:35.51,   v:1.5,  p:2.4,   pr:"middle_east", cl:"mediterranean" },
+  { n:"Jérusalem",      c:"Israël",            lat:31.78, lon:35.22,   v:3.5,  p:0.97,  pr:"middle_east", cl:"mediterranean" },
+  { n:"Ramallah",       c:"Palestine",         lat:31.90, lon:35.20,   v:0.65, p:0.04,  pr:"middle_east", cl:"mediterranean" },
+  { n:"Amman",          c:"Jordanie",          lat:31.95, lon:35.93,   v:5.0,  p:4.0,   pr:"middle_east", cl:"mediterranean" },
+  { n:"Riyad",          c:"Arabie saoudite",   lat:24.71, lon:46.68,   v:8.0,  p:7.7,   pr:"middle_east", cl:"desert_hot" },
+  { n:"La Mecque",      c:"Arabie saoudite",   lat:21.42, lon:39.83,   v:13.0, p:2.0,   pr:"middle_east", cl:"desert_hot" },
+  { n:"Sanaa",          c:"Yémen",             lat:15.37, lon:44.19,   v:0.05, p:2.6,   pr:"middle_east", cl:"desert_hot" },
+  { n:"Mascate",        c:"Oman",              lat:23.59, lon:58.41,   v:2.5,  p:1.6,   pr:"middle_east", cl:"desert_hot" },
+  { n:"Abou Dabi",      c:"Émirats AU",        lat:24.47, lon:54.37,   v:6.0,  p:1.5,   pr:"middle_east", cl:"desert_hot" },
+  { n:"Dubaï",          c:"Émirats AU",        lat:25.20, lon:55.27,   v:17.0, p:3.5,   pr:"middle_east", cl:"desert_hot" },
+  { n:"Doha",           c:"Qatar",             lat:25.29, lon:51.53,   v:4.0,  p:2.4,   pr:"middle_east", cl:"desert_hot" },
+  { n:"Manama",         c:"Bahreïn",           lat:26.22, lon:50.58,   v:5.0,  p:0.65,  pr:"middle_east", cl:"desert_hot" },
+  { n:"Koweït",         c:"Koweït",            lat:29.38, lon:47.99,   v:7.0,  p:3.0,   pr:"middle_east", cl:"desert_hot" },
+  // Afrique du Nord & Sahel
+  { n:"Le Caire",       c:"Égypte",            lat:30.04, lon:31.24,   v:5.0,  p:10.0,  pr:"middle_east", cl:"desert_hot" },
+  { n:"Tripoli",        c:"Libye",             lat:32.89, lon:13.18,   v:0.10, p:1.1,   pr:"middle_east", cl:"desert_hot" },
+  { n:"Tunis",          c:"Tunisie",           lat:36.81, lon:10.18,   v:6.0,  p:2.3,   pr:"med_beach",   cl:"mediterranean" },
+  { n:"Alger",          c:"Algérie",           lat:36.75, lon:3.06,    v:2.0,  p:3.0,   pr:"med_beach",   cl:"mediterranean" },
+  { n:"Rabat",          c:"Maroc",             lat:34.02, lon:-6.83,   v:1.5,  p:0.58,  pr:"middle_east", cl:"mediterranean" },
+  { n:"Marrakech",      c:"Maroc",             lat:31.63, lon:-7.99,   v:3.0,  p:0.93,  pr:"middle_east", cl:"desert_hot" },
+  { n:"Nouakchott",     c:"Mauritanie",        lat:18.07, lon:-15.98,  v:0.05, p:1.3,   pr:"africa_safari",cl:"desert_hot" },
+  { n:"Dakar",          c:"Sénégal",           lat:14.69, lon:-17.45,  v:1.5,  p:1.4,   pr:"africa_safari",cl:"tropical_savanna" },
+  { n:"Banjul",         c:"Gambie",            lat:13.45, lon:-16.58,  v:0.65, p:0.034, pr:"tropical_dry",cl:"tropical_savanna" },
+  { n:"Bissau",         c:"Guinée-Bissau",     lat:11.86, lon:-15.60,  v:0.05, p:0.49,  pr:"tropical_dry",cl:"tropical_savanna" },
+  { n:"Conakry",        c:"Guinée",            lat:9.51,  lon:-13.71,  v:0.10, p:1.7,   pr:"tropical_dry",cl:"tropical_savanna" },
+  { n:"Freetown",       c:"Sierra Leone",      lat:8.48,  lon:-13.23,  v:0.10, p:1.1,   pr:"tropical_dry",cl:"tropical_rain" },
+  { n:"Monrovia",       c:"Liberia",           lat:6.30,  lon:-10.80,  v:0.15, p:1.5,   pr:"tropical_dry",cl:"tropical_rain" },
+  { n:"Bamako",         c:"Mali",              lat:12.65, lon:-8.00,   v:0.20, p:2.7,   pr:"africa_safari",cl:"tropical_savanna" },
+  { n:"Ouagadougou",    c:"Burkina Faso",      lat:12.37, lon:-1.52,   v:0.10, p:2.4,   pr:"africa_safari",cl:"tropical_savanna" },
+  { n:"Niamey",         c:"Niger",             lat:13.51, lon:2.11,    v:0.07, p:1.3,   pr:"africa_safari",cl:"desert_hot" },
+  { n:"N'Djamena",      c:"Tchad",             lat:12.13, lon:15.05,   v:0.08, p:1.4,   pr:"africa_safari",cl:"tropical_savanna" },
+  { n:"Yamoussoukro",   c:"Côte d'Ivoire",     lat:6.83,  lon:-5.27,   v:2.0,  p:0.36,  pr:"tropical_dry",cl:"tropical_savanna" },
+  { n:"Lomé",           c:"Togo",              lat:6.17,  lon:1.23,    v:0.50, p:1.7,   pr:"tropical_dry",cl:"tropical_savanna" },
+  { n:"Cotonou",        c:"Bénin",             lat:6.36,  lon:2.42,    v:0.30, p:0.78,  pr:"tropical_dry",cl:"tropical_savanna" },
+  { n:"Accra",          c:"Ghana",             lat:5.60,  lon:-0.20,   v:1.0,  p:2.5,   pr:"tropical_dry",cl:"tropical_savanna" },
+  { n:"Abuja",          c:"Nigeria",           lat:9.06,  lon:7.49,    v:1.5,  p:3.5,   pr:"tropical_dry",cl:"tropical_savanna" },
+  // Afrique centrale, est & sud
+  { n:"Khartoum",       c:"Soudan",            lat:15.50, lon:32.56,   v:0.80, p:5.5,   pr:"africa_safari",cl:"desert_hot" },
+  { n:"Juba",           c:"Soudan du Sud",     lat:4.85,  lon:31.60,   v:0.10, p:0.52,  pr:"africa_safari",cl:"tropical_savanna" },
+  { n:"Asmara",         c:"Érythrée",          lat:15.32, lon:38.93,   v:0.15, p:0.96,  pr:"africa_safari",cl:"highland" },
+  { n:"Djibouti",       c:"Djibouti",          lat:11.59, lon:43.15,   v:0.06, p:0.62,  pr:"middle_east", cl:"desert_hot" },
+  { n:"Addis-Abeba",    c:"Éthiopie",          lat:9.03,  lon:38.74,   v:0.90, p:5.0,   pr:"africa_safari",cl:"highland" },
+  { n:"Mogadiscio",     c:"Somalie",           lat:2.04,  lon:45.34,   v:0.02, p:2.4,   pr:"africa_safari",cl:"tropical_savanna" },
+  { n:"Nairobi",        c:"Kenya",             lat:-1.29, lon:36.82,   v:2.0,  p:4.4,   pr:"africa_safari",cl:"highland" },
+  { n:"Kampala",        c:"Ouganda",           lat:0.35,  lon:32.58,   v:1.5,  p:1.5,   pr:"africa_safari",cl:"tropical_savanna" },
+  { n:"Kigali",         c:"Rwanda",            lat:-1.95, lon:30.06,   v:1.2,  p:1.2,   pr:"africa_safari",cl:"highland" },
+  { n:"Gitega",         c:"Burundi",           lat:-3.43, lon:29.93,   v:0.10, p:0.13,  pr:"africa_safari",cl:"highland" },
+  { n:"Dodoma",         c:"Tanzanie",          lat:-6.16, lon:35.75,   v:1.5,  p:0.41,  pr:"africa_safari",cl:"tropical_savanna" },
+  { n:"Lilongwe",       c:"Malawi",            lat:-13.96,lon:33.79,   v:0.85, p:0.99,  pr:"africa_safari",cl:"tropical_savanna" },
+  { n:"Lusaka",         c:"Zambie",            lat:-15.41,lon:28.29,   v:1.0,  p:3.3,   pr:"africa_safari",cl:"tropical_savanna" },
+  { n:"Harare",         c:"Zimbabwe",          lat:-17.83,lon:31.05,   v:2.0,  p:1.5,   pr:"africa_safari",cl:"sh_subtropical" },
+  { n:"Maputo",         c:"Mozambique",        lat:-25.97,lon:32.58,   v:2.0,  p:1.1,   pr:"africa_safari",cl:"sh_subtropical" },
+  { n:"Antananarivo",   c:"Madagascar",        lat:-18.88,lon:47.51,   v:0.50, p:1.6,   pr:"tropical_dry",cl:"highland" },
+  { n:"Moroni",         c:"Comores",           lat:-11.70,lon:43.26,   v:0.04, p:0.054, pr:"tropical_dry",cl:"tropical_rain" },
+  { n:"Port-Louis",     c:"Maurice",           lat:-20.16,lon:57.50,   v:1.4,  p:0.15,  pr:"tropical_dry",cl:"sh_subtropical" },
+  { n:"Victoria",       c:"Seychelles",        lat:-4.62, lon:55.45,   v:0.40, p:0.026, pr:"tropical_dry",cl:"tropical_rain" },
+  { n:"Mbabane",        c:"Eswatini",          lat:-26.32,lon:31.13,   v:1.0,  p:0.095, pr:"south_hemi",  cl:"sh_subtropical" },
+  { n:"Maseru",         c:"Lesotho",           lat:-29.31,lon:27.48,   v:1.1,  p:0.33,  pr:"south_hemi",  cl:"sh_temperate" },
+  { n:"Pretoria",       c:"Afrique du Sud",    lat:-25.75,lon:28.19,   v:2.0,  p:2.5,   pr:"south_hemi",  cl:"sh_subtropical" },
+  { n:"Le Cap",         c:"Afrique du Sud",    lat:-33.92,lon:18.42,   v:2.0,  p:4.6,   pr:"south_hemi",  cl:"sh_temperate" },
+  { n:"Gaborone",       c:"Botswana",          lat:-24.65,lon:25.91,   v:1.8,  p:0.23,  pr:"africa_safari",cl:"sh_subtropical" },
+  { n:"Windhoek",       c:"Namibie",           lat:-22.57,lon:17.08,   v:1.5,  p:0.43,  pr:"africa_safari",cl:"sh_temperate" },
+  { n:"Luanda",         c:"Angola",            lat:-8.84, lon:13.23,   v:0.35, p:8.3,   pr:"tropical_dry",cl:"tropical_savanna" },
+  { n:"Kinshasa",       c:"RD Congo",          lat:-4.32, lon:15.31,   v:0.35, p:14.0,  pr:"tropical_wet",cl:"tropical_rain" },
+  { n:"Brazzaville",    c:"Congo",             lat:-4.27, lon:15.28,   v:0.30, p:2.4,   pr:"tropical_wet",cl:"tropical_rain" },
+  { n:"Bangui",         c:"Centrafrique",      lat:4.39,  lon:18.55,   v:0.05, p:0.89,  pr:"tropical_wet",cl:"tropical_rain" },
+  { n:"Yaoundé",        c:"Cameroun",          lat:3.85,  lon:11.50,   v:1.0,  p:4.1,   pr:"tropical_wet",cl:"tropical_rain" },
+  { n:"Malabo",         c:"Guinée équat.",     lat:3.75,  lon:8.78,    v:0.05, p:0.30,  pr:"tropical_wet",cl:"tropical_rain" },
+  { n:"Libreville",     c:"Gabon",             lat:0.42,  lon:9.45,    v:0.20, p:0.80,  pr:"tropical_wet",cl:"tropical_rain" },
+  { n:"São Tomé",       c:"S. Tomé-et-Prín.",  lat:0.34,  lon:6.73,    v:0.04, p:0.080, pr:"tropical_wet",cl:"tropical_rain" },
+  { n:"Praia",          c:"Cap-Vert",          lat:14.93, lon:-23.51,  v:0.80, p:0.16,  pr:"tropical_dry",cl:"tropical_savanna" },
+  // Océanie
+  { n:"Canberra",       c:"Australie",         lat:-35.28,lon:149.13,  v:0.80, p:0.46,  pr:"south_hemi",  cl:"sh_temperate" },
+  { n:"Sydney",         c:"Australie",         lat:-33.87,lon:151.21,  v:16.0, p:5.0,   pr:"south_hemi",  cl:"sh_subtropical" },
+  { n:"Melbourne",      c:"Australie",         lat:-37.81,lon:144.96,  v:11.0, p:5.0,   pr:"south_hemi",  cl:"sh_temperate" },
+  { n:"Wellington",     c:"Nouv.-Zélande",     lat:-41.29,lon:174.78,  v:1.5,  p:0.42,  pr:"south_hemi",  cl:"sh_temperate" },
+  { n:"Auckland",       c:"Nouv.-Zélande",     lat:-36.85,lon:174.76,  v:2.7,  p:1.65,  pr:"south_hemi",  cl:"sh_temperate" },
+  { n:"Port Moresby",   c:"Papouasie-N.-G.",   lat:-9.44, lon:147.18,  v:0.20, p:0.38,  pr:"tropical_wet",cl:"tropical_rain" },
+  { n:"Suva",           c:"Fidji",             lat:-18.14,lon:178.44,  v:0.90, p:0.094, pr:"tropical_dry",cl:"tropical_rain" },
+  { n:"Honiara",        c:"Salomon",           lat:-9.43, lon:159.96,  v:0.03, p:0.085, pr:"tropical_wet",cl:"tropical_rain" },
+  { n:"Port-Vila",      c:"Vanuatu",           lat:-17.74,lon:168.31,  v:0.10, p:0.051, pr:"tropical_dry",cl:"tropical_rain" },
+  { n:"Apia",           c:"Samoa",             lat:-13.83,lon:-171.77, v:0.18, p:0.04,  pr:"tropical_dry",cl:"tropical_rain" },
+  { n:"Nuku'alofa",     c:"Tonga",             lat:-21.13,lon:-175.20, v:0.09, p:0.023, pr:"tropical_dry",cl:"tropical_rain" },
+  { n:"Tarawa",         c:"Kiribati",          lat:1.45,  lon:172.97,  v:0.006,p:0.064, pr:"tropical_wet",cl:"tropical_rain" },
+  { n:"Funafuti",       c:"Tuvalu",            lat:-8.52, lon:179.20,  v:0.003,p:0.007, pr:"tropical_wet",cl:"tropical_rain" },
+  { n:"Yaren",          c:"Nauru",             lat:-0.55, lon:166.92,  v:0.002,p:0.001, pr:"tropical_wet",cl:"tropical_rain" },
+  { n:"Palikir",        c:"Micronésie",        lat:6.92,  lon:158.16,  v:0.02, p:0.007, pr:"tropical_wet",cl:"tropical_rain" },
+  { n:"Majuro",         c:"Marshall",          lat:7.09,  lon:171.38,  v:0.01, p:0.028, pr:"tropical_wet",cl:"tropical_rain" },
+  { n:"Ngerulmud",      c:"Palaos",            lat:7.50,  lon:134.62,  v:0.10, p:0.0003,pr:"tropical_wet",cl:"tropical_rain" },
+  // ===== Destinations auto-générées (villes >150k hab. avec aéroport international) =====
+  { n:"Shenzhen", c:"Chine", lat:22.55, lon:114.07, v:1.56, p:17.494, pr:"tropical_dry", cl:"tropical_savanna" },
+  { n:"Guangzhou", c:"Chine", lat:23.12, lon:113.25, v:1.05, p:16.097, pr:"japan", cl:"subtropical" },
+  { n:"Lagos", c:"Nigeria", lat:6.45, lon:3.39, v:1.42, p:15.388, pr:"tropical_wet", cl:"tropical_rain" },
+  { n:"Hô Chi Minh-Ville", c:"Vietnam", lat:10.82, lon:106.63, v:1.33, p:14.003, pr:"tropical_wet", cl:"tropical_rain" },
+  { n:"Chengdu", c:"Chine", lat:30.67, lon:104.07, v:0.93, p:13.568, pr:"japan", cl:"subtropical" },
+  { n:"Lahore", c:"Pakistan", lat:31.56, lon:74.35, v:0.9, p:13.004, pr:"middle_east", cl:"desert_cold" },
+  { n:"São Paulo", c:"Brésil", lat:-23.55, lon:-46.64, v:0.87, p:12.4, pr:"south_hemi", cl:"sh_subtropical" },
+  { n:"Karachi", c:"Pakistan", lat:24.86, lon:67.01, v:0.84, p:11.624, pr:"tropical_dry", cl:"tropical_monsoon" },
+  { n:"Tianjin", c:"Chine", lat:39.14, lon:117.18, v:0.81, p:11.09, pr:"japan", cl:"subtropical" },
+  { n:"Wuhan", c:"Chine", lat:30.58, lon:114.27, v:0.77, p:10.393, pr:"japan", cl:"subtropical" },
+  { n:"Dongguan", c:"Chine", lat:23.02, lon:113.75, v:0.73, p:9.645, pr:"japan", cl:"subtropical" },
+  { n:"Xi’an", c:"Chine", lat:34.26, lon:108.93, v:0.73, p:9.6, pr:"japan", cl:"subtropical" },
+  { n:"Johannesburg", c:"Afrique du Sud", lat:-26.2, lon:28.04, v:0.72, p:9.418, pr:"south_hemi", cl:"sh_subtropical" },
+  { n:"Nanjing", c:"Chine", lat:32.06, lon:118.78, v:0.72, p:9.315, pr:"japan", cl:"subtropical" },
+  { n:"Hangzhou", c:"Chine", lat:30.29, lon:120.16, v:0.71, p:9.236, pr:"japan", cl:"subtropical" },
+  { n:"Foshan", c:"Chine", lat:23.03, lon:113.13, v:0.7, p:9.043, pr:"japan", cl:"subtropical" },
+  { n:"Bengaluru", c:"Inde", lat:12.97, lon:77.59, v:0.67, p:8.495, pr:"tropical_dry", cl:"tropical_monsoon" },
+  { n:"Chongqing", c:"Chine", lat:29.56, lon:106.56, v:0.61, p:7.458, pr:"japan", cl:"subtropical" },
+  { n:"Qingdao", c:"Chine", lat:36.06, lon:120.38, v:0.6, p:7.172, pr:"japan", cl:"subtropical" },
+  { n:"Shenyang", c:"Chine", lat:41.79, lon:123.43, v:0.59, p:7.05, pr:"euro_city", cl:"continental_warm" },
+  { n:"Hyderabad", c:"Inde", lat:17.38, lon:78.46, v:0.59, p:6.993, pr:"tropical_dry", cl:"tropical_monsoon" },
+  { n:"Suzhou", c:"Chine", lat:31.3, lon:120.6, v:0.57, p:6.716, pr:"japan", cl:"subtropical" },
+  { n:"Ahmedabad", c:"Inde", lat:23.03, lon:72.59, v:0.55, p:6.358, pr:"tropical_dry", cl:"tropical_monsoon" },
+  { n:"Abidjan", c:"Côte d'Ivoire", lat:5.35, lon:-4.0, v:0.76, p:6.321, pr:"tropical_wet", cl:"tropical_rain" },
+  { n:"Dar es Salaam", c:"Tanzanie", lat:-6.82, lon:39.27, v:0.68, p:5.384, pr:"tropical_wet", cl:"tropical_rain" },
+  { n:"Saint Petersburg", c:"Russie", lat:59.94, lon:30.31, v:0.49, p:5.352, pr:"euro_xmas", cl:"subarctic" },
+  { n:"Alexandria", c:"Égypte", lat:31.2, lon:29.92, v:0.67, p:5.264, pr:"med_beach", cl:"mediterranean" },
+  { n:"Harbin", c:"Chine", lat:45.75, lon:126.65, v:0.48, p:5.243, pr:"euro_city", cl:"continental_warm" },
+  { n:"Hefei", c:"Chine", lat:31.86, lon:117.28, v:0.47, p:5.05, pr:"japan", cl:"subtropical" },
+  { n:"Dalian", c:"Chine", lat:38.91, lon:121.6, v:0.46, p:4.914, pr:"japan", cl:"subtropical" },
+  { n:"Kano", c:"Nigeria", lat:12.0, lon:8.52, v:0.64, p:4.91, pr:"tropical_dry", cl:"tropical_savanna" },
+  { n:"Peshawar", c:"Pakistan", lat:34.01, lon:71.58, v:0.45, p:4.759, pr:"middle_east", cl:"desert_cold" },
+  { n:"Changchun", c:"Chine", lat:43.88, lon:125.32, v:0.44, p:4.715, pr:"euro_city", cl:"continental_warm" },
+  { n:"Jeddah", c:"Arabie saoudite", lat:21.49, lon:39.19, v:0.44, p:4.697, pr:"middle_east", cl:"desert_hot" },
+  { n:"Chennai", c:"Inde", lat:13.09, lon:80.28, v:0.44, p:4.681, pr:"tropical_dry", cl:"tropical_monsoon" },
+  { n:"Calcutta", c:"Inde", lat:22.56, lon:88.36, v:0.44, p:4.631, pr:"tropical_dry", cl:"tropical_monsoon" },
+  { n:"Xiamen", c:"Chine", lat:24.48, lon:118.08, v:0.44, p:4.617, pr:"japan", cl:"subtropical" },
+  { n:"Surat", c:"Inde", lat:21.2, lon:72.83, v:0.44, p:4.591, pr:"tropical_dry", cl:"tropical_monsoon" },
+  { n:"Rangoun", c:"Birmanie", lat:16.81, lon:96.16, v:0.43, p:4.478, pr:"tropical_dry", cl:"tropical_monsoon" },
+  { n:"Bao'an", c:"Chine", lat:22.55, lon:113.88, v:0.6, p:4.477, pr:"tropical_dry", cl:"tropical_savanna" },
+  { n:"Wuxi", c:"Chine", lat:31.57, lon:120.29, v:0.42, p:4.397, pr:"japan", cl:"subtropical" },
+  { n:"Jinan", c:"Chine", lat:36.67, lon:117.0, v:0.42, p:4.336, pr:"japan", cl:"subtropical" },
+  { n:"Taiyuan", c:"Chine", lat:37.87, lon:112.56, v:0.42, p:4.304, pr:"japan", cl:"subtropical" },
+  { n:"Zhengzhou", c:"Chine", lat:34.76, lon:113.65, v:0.41, p:4.254, pr:"japan", cl:"subtropical" },
+  { n:"New Taipei City", c:"Taïwan", lat:25.06, lon:121.46, v:0.4, p:4.004, pr:"japan", cl:"subtropical" },
+  { n:"New Territories", c:"Hong Kong", lat:22.42, lon:114.11, v:0.55, p:3.984, pr:"tropical_dry", cl:"tropical_savanna" },
+  { n:"Shijiazhuang", c:"Chine", lat:38.04, lon:114.48, v:0.39, p:3.939, pr:"japan", cl:"subtropical" },
+  { n:"Chattogram", c:"Bangladesh", lat:22.34, lon:91.83, v:0.39, p:3.92, pr:"tropical_dry", cl:"tropical_monsoon" },
+  { n:"Kunming", c:"Chine", lat:25.04, lon:102.72, v:0.39, p:3.855, pr:"japan", cl:"subtropical" },
+  { n:"Zhongshan", c:"Chine", lat:22.52, lon:113.38, v:0.54, p:3.842, pr:"tropical_dry", cl:"tropical_savanna" },
+  { n:"Nanning", c:"Chine", lat:22.82, lon:108.32, v:0.54, p:3.84, pr:"tropical_dry", cl:"tropical_savanna" },
+  { n:"Shantou", c:"Chine", lat:23.35, lon:116.68, v:0.38, p:3.839, pr:"japan", cl:"subtropical" },
+  { n:"Faisalabad", c:"Pakistan", lat:31.42, lon:73.09, v:0.38, p:3.8, pr:"middle_east", cl:"desert_cold" },
+  { n:"Yokohama", c:"Japon", lat:35.43, lon:139.65, v:0.49, p:3.777, pr:"japan", cl:"subtropical" },
+  { n:"Fuzhou", c:"Chine", lat:26.06, lon:119.31, v:0.38, p:3.74, pr:"japan", cl:"subtropical" },
+  { n:"Ningbo", c:"Chine", lat:29.88, lon:121.55, v:0.38, p:3.731, pr:"japan", cl:"subtropical" },
+  { n:"Casablanca", c:"Maroc", lat:33.59, lon:-7.61, v:0.52, p:3.666, pr:"med_beach", cl:"mediterranean" },
+  { n:"Ibadan", c:"Nigeria", lat:7.38, lon:3.91, v:0.52, p:3.649, pr:"tropical_wet", cl:"tropical_rain" },
+  { n:"Puyang", c:"Chine", lat:29.46, lon:119.89, v:0.37, p:3.59, pr:"japan", cl:"subtropical" },
+  { n:"Ankara", c:"Turquie", lat:39.92, lon:32.85, v:0.66, p:3.517, pr:"med_beach", cl:"mediterranean" },
+  { n:"Shiyan", c:"Chine", lat:32.65, lon:110.78, v:0.36, p:3.46, pr:"japan", cl:"subtropical" },
+  { n:"Tangshan", c:"Chine", lat:39.64, lon:118.18, v:0.35, p:3.372, pr:"japan", cl:"subtropical" },
+  { n:"Rawalpindi", c:"Pakistan", lat:33.6, lon:73.05, v:0.35, p:3.358, pr:"middle_east", cl:"desert_cold" },
+  { n:"Lüliang", c:"Chine", lat:37.52, lon:111.14, v:0.35, p:3.346, pr:"japan", cl:"subtropical" },
+  { n:"Busan", c:"Corée du Sud", lat:35.1, lon:129.03, v:0.35, p:3.344, pr:"japan", cl:"subtropical" },
+  { n:"Durban", c:"Afrique du Sud", lat:-29.86, lon:31.03, v:0.35, p:3.338, pr:"south_hemi", cl:"sh_subtropical" },
+  { n:"Changzhou", c:"Chine", lat:31.77, lon:119.95, v:0.35, p:3.291, pr:"japan", cl:"subtropical" },
+  { n:"Zibo", c:"Chine", lat:36.79, lon:118.06, v:0.33, p:3.129, pr:"japan", cl:"subtropical" },
+  { n:"Pune", c:"Inde", lat:18.52, lon:73.86, v:0.33, p:3.124, pr:"tropical_dry", cl:"tropical_monsoon" },
+  { n:"Bursa", c:"Turquie", lat:40.2, lon:29.06, v:0.6, p:3.102, pr:"med_beach", cl:"mediterranean" },
+  { n:"Changsha", c:"Chine", lat:28.2, lon:112.97, v:0.33, p:3.094, pr:"japan", cl:"subtropical" },
+  { n:"Jaipur", c:"Inde", lat:26.92, lon:75.79, v:0.33, p:3.046, pr:"tropical_dry", cl:"tropical_monsoon" },
+  { n:"Guiyang", c:"Chine", lat:26.58, lon:106.72, v:0.33, p:3.037, pr:"japan", cl:"subtropical" },
+  { n:"Ürümqi", c:"Chine", lat:43.8, lon:87.6, v:0.33, p:3.029, pr:"euro_city", cl:"continental_warm" },
+  { n:"Incheon", c:"Corée du Sud", lat:37.46, lon:126.71, v:0.32, p:3.016, pr:"japan", cl:"subtropical" },
+  { n:"Lanzhou", c:"Chine", lat:36.06, lon:103.84, v:0.32, p:3.0, pr:"japan", cl:"subtropical" },
+  { n:"Quezon City", c:"Philippines", lat:14.65, lon:121.05, v:0.45, p:2.96, pr:"tropical_dry", cl:"tropical_savanna" },
+  { n:"Huizhou", c:"Chine", lat:23.11, lon:114.42, v:0.32, p:2.9, pr:"japan", cl:"subtropical" },
+  { n:"Surabaya", c:"Indonésie", lat:-7.25, lon:112.75, v:0.44, p:2.874, pr:"tropical_wet", cl:"tropical_rain" },
+  { n:"Haikou", c:"Chine", lat:20.03, lon:110.35, v:0.44, p:2.873, pr:"tropical_dry", cl:"tropical_savanna" },
+  { n:"Taichung", c:"Taïwan", lat:24.15, lon:120.68, v:0.31, p:2.85, pr:"japan", cl:"subtropical" },
+  { n:"Kanpur", c:"Inde", lat:26.47, lon:80.35, v:0.31, p:2.823, pr:"tropical_dry", cl:"tropical_monsoon" },
+  { n:"Brisbane", c:"Australie", lat:-27.47, lon:153.03, v:0.31, p:2.78, pr:"south_hemi", cl:"sh_subtropical" },
+  { n:"Osaka", c:"Japon", lat:34.69, lon:135.5, v:0.4, p:2.754, pr:"japan", cl:"subtropical" },
+  { n:"Linyi", c:"Chine", lat:35.06, lon:118.34, v:0.3, p:2.744, pr:"japan", cl:"subtropical" },
+  { n:"Baoding", c:"Chine", lat:38.87, lon:115.46, v:0.3, p:2.74, pr:"japan", cl:"subtropical" },
+  { n:"Kaohsiung", c:"Taïwan", lat:22.62, lon:120.31, v:0.42, p:2.738, pr:"tropical_dry", cl:"tropical_savanna" },
+  { n:"Brooklyn", c:"États-Unis", lat:40.65, lon:-73.95, v:0.39, p:2.736, pr:"us_city", cl:"continental_warm" },
+  { n:"Guayaquil", c:"Équateur", lat:-2.2, lon:-79.89, v:0.42, p:2.724, pr:"tropical_wet", cl:"tropical_rain" },
+  { n:"Belo Horizonte", c:"Brésil", lat:-19.92, lon:-43.94, v:0.42, p:2.722, pr:"tropical_dry", cl:"tropical_savanna" },
+  { n:"Salvador", c:"Brésil", lat:-12.98, lon:-38.49, v:0.42, p:2.712, pr:"tropical_dry", cl:"tropical_savanna" },
+  { n:"Gazipur", c:"Bangladesh", lat:24.0, lon:90.42, v:0.3, p:2.675, pr:"tropical_dry", cl:"tropical_monsoon" },
+  { n:"Chicago", c:"États-Unis", lat:41.85, lon:-87.65, v:0.39, p:2.664, pr:"us_city", cl:"continental_warm" },
+  { n:"Wenzhou", c:"Chine", lat:28.0, lon:120.67, v:0.3, p:2.65, pr:"japan", cl:"subtropical" },
+  { n:"Haiphong", c:"Vietnam", lat:20.86, lon:106.68, v:0.41, p:2.625, pr:"tropical_dry", cl:"tropical_savanna" },
+  { n:"Yunfu", c:"Chine", lat:22.93, lon:112.04, v:0.41, p:2.613, pr:"tropical_dry", cl:"tropical_savanna" },
+  { n:"Navi Mumbai", c:"Inde", lat:19.04, lon:73.02, v:0.29, p:2.6, pr:"tropical_dry", cl:"tropical_monsoon" },
+  { n:"Bekasi", c:"Indonésie", lat:-6.23, lon:106.99, v:0.41, p:2.565, pr:"tropical_wet", cl:"tropical_rain" },
+  { n:"Kumasi", c:"Ghana", lat:6.69, lon:-1.62, v:0.4, p:2.545, pr:"tropical_wet", cl:"tropical_rain" },
+  { n:"Gujranwala", c:"Pakistan", lat:32.16, lon:74.19, v:0.29, p:2.511, pr:"middle_east", cl:"desert_cold" },
+  { n:"İzmir", c:"Turquie", lat:38.41, lon:27.14, v:0.52, p:2.501, pr:"med_beach", cl:"mediterranean" },
+  { n:"Huai'an", c:"Chine", lat:33.59, lon:119.02, v:0.28, p:2.494, pr:"japan", cl:"subtropical" },
+  { n:"Lucknow", c:"Inde", lat:26.84, lon:80.92, v:0.28, p:2.472, pr:"tropical_dry", cl:"tropical_monsoon" },
+  { n:"Bandung", c:"Indonésie", lat:-6.92, lon:107.61, v:0.39, p:2.444, pr:"tropical_wet", cl:"tropical_rain" },
+  { n:"Medan", c:"Indonésie", lat:3.58, lon:98.67, v:0.39, p:2.435, pr:"tropical_wet", cl:"tropical_rain" },
+  { n:"Nagpur", c:"Inde", lat:21.15, lon:79.08, v:0.28, p:2.406, pr:"tropical_dry", cl:"tropical_monsoon" },
+  { n:"Fortaleza", c:"Brésil", lat:-3.72, lon:-38.54, v:0.39, p:2.4, pr:"tropical_wet", cl:"tropical_rain" },
+  { n:"Cali", c:"Colombie", lat:3.43, lon:-76.52, v:0.39, p:2.393, pr:"tropical_wet", cl:"tropical_rain" },
+  { n:"Daegu", c:"Corée du Sud", lat:35.87, lon:128.59, v:0.27, p:2.366, pr:"japan", cl:"subtropical" },
+  { n:"Nanchang", c:"Chine", lat:28.68, lon:115.85, v:0.27, p:2.358, pr:"japan", cl:"subtropical" },
+  { n:"Hohhot", c:"Chine", lat:40.81, lon:111.65, v:0.27, p:2.35, pr:"euro_city", cl:"continental_warm" },
+  { n:"Nagoya", c:"Japon", lat:35.18, lon:136.91, v:0.35, p:2.332, pr:"japan", cl:"subtropical" },
+  { n:"Queens", c:"États-Unis", lat:40.68, lon:-73.84, v:0.35, p:2.317, pr:"us_city", cl:"continental_warm" },
+  { n:"Houston", c:"États-Unis", lat:29.76, lon:-95.36, v:0.35, p:2.314, pr:"us_city", cl:"subtropical" },
+  { n:"Perth", c:"Australie", lat:-31.95, lon:115.86, v:0.27, p:2.309, pr:"south_hemi", cl:"sh_subtropical" },
+  { n:"Mashhad", c:"Iran", lat:36.3, lon:59.61, v:0.27, p:2.307, pr:"euro_city", cl:"continental_warm" },
+  { n:"Shaoxing", c:"Chine", lat:30.0, lon:120.58, v:0.27, p:2.3, pr:"japan", cl:"subtropical" },
+  { n:"Nantong", c:"Chine", lat:32.03, lon:120.87, v:0.27, p:2.273, pr:"japan", cl:"subtropical" },
+  { n:"Yantai", c:"Chine", lat:37.48, lon:121.44, v:0.26, p:2.228, pr:"japan", cl:"subtropical" },
+  { n:"Lubumbashi", c:"RD Congo", lat:-11.66, lon:27.48, v:0.37, p:2.222, pr:"tropical_dry", cl:"tropical_savanna" },
+  { n:"Manaus", c:"Brésil", lat:-3.1, lon:-60.02, v:0.37, p:2.22, pr:"tropical_wet", cl:"tropical_rain" },
+  { n:"Zhuhai", c:"Chine", lat:22.28, lon:113.57, v:0.37, p:2.207, pr:"tropical_dry", cl:"tropical_savanna" },
+  { n:"Multan", c:"Pakistan", lat:30.2, lon:71.48, v:0.26, p:2.17, pr:"middle_east", cl:"desert_cold" },
+  { n:"Baotou", c:"Chine", lat:40.65, lon:109.84, v:0.26, p:2.15, pr:"euro_city", cl:"continental_warm" },
+  { n:"Depok", c:"Indonésie", lat:-6.4, lon:106.82, v:0.36, p:2.145, pr:"tropical_wet", cl:"tropical_rain" },
+  { n:"Coimbatore", c:"Inde", lat:11.01, lon:76.97, v:0.26, p:2.137, pr:"tropical_dry", cl:"tropical_monsoon" },
+  { n:"Gaziantep", c:"Turquie", lat:37.06, lon:37.38, v:0.46, p:2.13, pr:"med_beach", cl:"mediterranean" },
+  { n:"Qingyang", c:"Chine", lat:35.71, lon:107.64, v:0.25, p:2.125, pr:"japan", cl:"subtropical" },
+  { n:"Port Harcourt", c:"Nigeria", lat:4.78, lon:7.01, v:0.36, p:2.12, pr:"tropical_wet", cl:"tropical_rain" },
+  { n:"Córdoba", c:"Argentine", lat:-31.41, lon:-64.19, v:0.25, p:2.107, pr:"south_hemi", cl:"sh_subtropical" },
+  { n:"Mbuji-Mayi", c:"RD Congo", lat:-6.14, lon:23.59, v:0.35, p:2.101, pr:"tropical_wet", cl:"tropical_rain" },
+  { n:"Aleppo", c:"Syrie", lat:36.2, lon:37.16, v:0.35, p:2.098, pr:"med_beach", cl:"mediterranean" },
+  { n:"Kunshan", c:"Chine", lat:31.38, lon:120.95, v:0.25, p:2.092, pr:"japan", cl:"subtropical" },
+  { n:"Al Mawşil al Jadīdah", c:"Irak", lat:36.33, lon:43.11, v:0.25, p:2.066, pr:"euro_city", cl:"continental_warm" },
+  { n:"Weifang", c:"Chine", lat:36.71, lon:119.1, v:0.25, p:2.044, pr:"japan", cl:"subtropical" },
+  { n:"Zunyi", c:"Chine", lat:27.69, lon:106.91, v:0.25, p:2.038, pr:"japan", cl:"subtropical" },
+  { n:"Al Başrah al Qadīmah", c:"Irak", lat:30.5, lon:47.82, v:0.24, p:2.015, pr:"middle_east", cl:"desert_hot" },
+  { n:"Lianyungang", c:"Chine", lat:34.6, lon:119.22, v:0.24, p:2.001, pr:"japan", cl:"subtropical" },
+  { n:"Medellín", c:"Colombie", lat:6.25, lon:-75.57, v:0.34, p:2.0, pr:"tropical_wet", cl:"tropical_rain" },
+  { n:"Indore", c:"Inde", lat:22.72, lon:75.83, v:0.24, p:1.994, pr:"tropical_dry", cl:"tropical_monsoon" },
+  { n:"Ganzhou", c:"Chine", lat:25.85, lon:114.93, v:0.24, p:1.977, pr:"japan", cl:"subtropical" },
+  { n:"Almaty", c:"Kazakhstan", lat:43.25, lon:76.91, v:0.24, p:1.977, pr:"euro_city", cl:"continental_warm" },
+  { n:"Sapporo", c:"Japon", lat:43.07, lon:141.35, v:0.31, p:1.974, pr:"japan", cl:"continental_warm" },
+  { n:"Curitiba", c:"Brésil", lat:-25.43, lon:-49.27, v:0.24, p:1.949, pr:"south_hemi", cl:"sh_subtropical" },
+  { n:"Ordos", c:"Chine", lat:39.61, lon:109.78, v:0.24, p:1.941, pr:"japan", cl:"subtropical" },
+  { n:"Tijuana", c:"Mexique", lat:32.5, lon:-117.0, v:0.24, p:1.923, pr:"middle_east", cl:"desert_hot" },
+  { n:"Tangerang", c:"Indonésie", lat:-6.18, lon:106.63, v:0.33, p:1.913, pr:"tropical_wet", cl:"tropical_rain" },
+  { n:"Jieyang", c:"Chine", lat:23.54, lon:116.37, v:0.24, p:1.899, pr:"japan", cl:"subtropical" },
+  { n:"Jilin", c:"Chine", lat:43.85, lon:126.56, v:0.23, p:1.896, pr:"euro_city", cl:"continental_warm" },
+  { n:"Kakamega", c:"Kenya", lat:0.28, lon:34.75, v:0.33, p:1.868, pr:"tropical_wet", cl:"tropical_rain" },
+  { n:"Nanchong", c:"Chine", lat:30.8, lon:106.08, v:0.23, p:1.859, pr:"japan", cl:"subtropical" },
+  { n:"Tainan", c:"Taïwan", lat:22.99, lon:120.21, v:0.32, p:1.857, pr:"tropical_dry", cl:"tropical_savanna" },
+  { n:"Datong", c:"Chine", lat:40.09, lon:113.29, v:0.23, p:1.85, pr:"euro_city", cl:"continental_warm" },
+  { n:"Kaduna", c:"Nigeria", lat:10.53, lon:7.44, v:0.32, p:1.85, pr:"tropical_dry", cl:"tropical_savanna" },
+  { n:"Omdurman", c:"Soudan", lat:15.64, lon:32.48, v:0.32, p:1.85, pr:"tropical_dry", cl:"tropical_savanna" },
+  { n:"Hambourg", c:"Allemagne", lat:53.55, lon:9.99, v:0.3, p:1.845, pr:"euro_city", cl:"oceanic" },
+  { n:"Thāne", c:"Inde", lat:19.2, lon:72.96, v:0.23, p:1.841, pr:"tropical_dry", cl:"tropical_monsoon" },
+  { n:"Santa Cruz de la Sierra", c:"Bolivie", lat:-17.79, lon:-63.18, v:0.32, p:1.831, pr:"tropical_dry", cl:"tropical_savanna" },
+  { n:"Vadodara", c:"Inde", lat:22.3, lon:73.21, v:0.23, p:1.822, pr:"tropical_dry", cl:"tropical_monsoon" },
+  { n:"Adana", c:"Turquie", lat:36.99, lon:35.33, v:0.41, p:1.817, pr:"med_beach", cl:"mediterranean" },
+  { n:"Nanyang", c:"Chine", lat:32.99, lon:112.53, v:0.23, p:1.812, pr:"japan", cl:"subtropical" },
+  { n:"Sharjah", c:"Émirats AU", lat:25.34, lon:55.41, v:0.32, p:1.8, pr:"tropical_dry", cl:"tropical_savanna" },
+  { n:"Bhopal", c:"Inde", lat:23.25, lon:77.4, v:0.23, p:1.798, pr:"tropical_dry", cl:"tropical_monsoon" },
+  { n:"Jiangmen", c:"Chine", lat:22.58, lon:113.08, v:0.32, p:1.795, pr:"tropical_dry", cl:"tropical_savanna" },
+  { n:"Diyarbakır", c:"Turquie", lat:37.91, lon:40.22, v:0.29, p:1.791, pr:"euro_city", cl:"continental_warm" },
+  { n:"Benin City", c:"Nigeria", lat:6.34, lon:5.63, v:0.31, p:1.782, pr:"tropical_wet", cl:"tropical_rain" },
+  { n:"Jiangyin", c:"Chine", lat:31.91, lon:120.26, v:0.22, p:1.78, pr:"japan", cl:"subtropical" },
+  { n:"Davao", c:"Philippines", lat:7.07, lon:125.61, v:0.31, p:1.777, pr:"tropical_wet", cl:"tropical_rain" },
+  { n:"Fuyang", c:"Chine", lat:32.9, lon:115.82, v:0.22, p:1.769, pr:"japan", cl:"subtropical" },
+  { n:"Montréal", c:"Canada", lat:45.51, lon:-73.59, v:0.22, p:1.763, pr:"euro_city", cl:"continental_warm" },
+  { n:"Bayan Nur", c:"Chine", lat:40.74, lon:107.39, v:0.22, p:1.76, pr:"euro_city", cl:"continental_warm" },
+  { n:"Maracaibo", c:"Venezuela", lat:10.64, lon:-71.61, v:0.31, p:1.753, pr:"tropical_dry", cl:"tropical_savanna" },
+  { n:"Chaozhou", c:"Chine", lat:23.65, lon:116.62, v:0.22, p:1.751, pr:"japan", cl:"subtropical" },
+  { n:"Qingyuan", c:"Chine", lat:23.7, lon:113.03, v:0.22, p:1.738, pr:"japan", cl:"subtropical" },
+  { n:"Tai’an", c:"Chine", lat:36.19, lon:117.12, v:0.22, p:1.735, pr:"japan", cl:"subtropical" },
+  { n:"Rasapūdipalem", c:"Inde", lat:17.73, lon:83.32, v:0.22, p:1.728, pr:"tropical_dry", cl:"tropical_monsoon" },
+  { n:"Pimpri-Chinchwad", c:"Inde", lat:18.62, lon:73.8, v:0.22, p:1.728, pr:"tropical_dry", cl:"tropical_monsoon" },
+  { n:"Soweto", c:"Afrique du Sud", lat:-26.27, lon:27.86, v:0.22, p:1.695, pr:"south_hemi", cl:"sh_subtropical" },
+  { n:"Puebla", c:"Mexique", lat:19.05, lon:-98.21, v:0.3, p:1.692, pr:"tropical_dry", cl:"tropical_savanna" },
+  { n:"Patna", c:"Inde", lat:25.59, lon:85.14, v:0.22, p:1.684, pr:"tropical_dry", cl:"tropical_monsoon" },
+  { n:"Kallakurichi", c:"Inde", lat:11.73, lon:78.96, v:0.22, p:1.683, pr:"tropical_dry", cl:"tropical_monsoon" },
+  { n:"Xining", c:"Chine", lat:36.63, lon:101.76, v:0.22, p:1.677, pr:"japan", cl:"subtropical" },
+  { n:"Changshu", c:"Chine", lat:31.65, lon:120.74, v:0.22, p:1.677, pr:"japan", cl:"subtropical" },
+  { n:"Palembang", c:"Indonésie", lat:-2.92, lon:104.75, v:0.3, p:1.669, pr:"tropical_wet", cl:"tropical_rain" },
+  { n:"Huainan", c:"Chine", lat:32.63, lon:117.0, v:0.21, p:1.667, pr:"japan", cl:"subtropical" },
+  { n:"Semarang", c:"Indonésie", lat:-6.99, lon:110.42, v:0.3, p:1.654, pr:"tropical_wet", cl:"tropical_rain" },
+  { n:"Recife", c:"Brésil", lat:-8.05, lon:-34.88, v:0.3, p:1.653, pr:"tropical_wet", cl:"tropical_rain" },
+  { n:"Phoenix", c:"États-Unis", lat:33.45, lon:-112.07, v:0.28, p:1.65, pr:"us_city", cl:"desert_hot" },
+  { n:"Ecatepec de Morelos", c:"Mexique", lat:19.6, lon:-99.06, v:0.3, p:1.645, pr:"tropical_dry", cl:"tropical_savanna" },
+  { n:"Lu’an", c:"Chine", lat:31.74, lon:116.52, v:0.21, p:1.644, pr:"japan", cl:"subtropical" },
+  { n:"Valencia", c:"Venezuela", lat:10.16, lon:-68.0, v:0.29, p:1.619, pr:"tropical_dry", cl:"tropical_savanna" },
+  { n:"Ludhiana", c:"Inde", lat:30.91, lon:75.85, v:0.21, p:1.619, pr:"middle_east", cl:"desert_cold" },
+  { n:"Yancheng", c:"Chine", lat:33.36, lon:120.16, v:0.21, p:1.616, pr:"japan", cl:"subtropical" },
+  { n:"Novosibirsk", c:"Russie", lat:55.03, lon:82.94, v:0.29, p:1.613, pr:"tropical_dry", cl:"tropical_savanna" },
+  { n:"Erbil", c:"Irak", lat:36.19, lon:44.01, v:0.21, p:1.613, pr:"euro_city", cl:"continental_warm" },
+  { n:"Fukuoka", c:"Japon", lat:33.6, lon:130.42, v:0.27, p:1.612, pr:"japan", cl:"subtropical" },
+  { n:"Taizhou", c:"Chine", lat:32.49, lon:119.91, v:0.21, p:1.607, pr:"japan", cl:"subtropical" },
+  { n:"Daqing", c:"Chine", lat:46.58, lon:125.0, v:0.21, p:1.604, pr:"euro_city", cl:"continental_warm" },
+  { n:"Wuhu", c:"Chine", lat:31.35, lon:118.43, v:0.21, p:1.598, pr:"japan", cl:"subtropical" },
+  { n:"Santiago de Querétaro", c:"Mexique", lat:20.59, lon:-100.39, v:0.21, p:1.594, pr:"middle_east", cl:"desert_hot" },
+  { n:"Dazhou", c:"Chine", lat:31.21, lon:107.46, v:0.21, p:1.589, pr:"japan", cl:"subtropical" },
+  { n:"Yangzhou", c:"Chine", lat:32.4, lon:119.44, v:0.21, p:1.584, pr:"japan", cl:"subtropical" },
+  { n:"León de los Aldama", c:"Mexique", lat:21.13, lon:-101.67, v:0.21, p:1.58, pr:"middle_east", cl:"desert_hot" },
+  { n:"Philadelphia", c:"États-Unis", lat:39.95, lon:-75.16, v:0.27, p:1.574, pr:"us_city", cl:"subtropical" },
+  { n:"Guilin", c:"Chine", lat:25.28, lon:110.3, v:0.21, p:1.572, pr:"japan", cl:"subtropical" },
+  { n:"Quetta", c:"Pakistan", lat:30.18, lon:67.0, v:0.21, p:1.566, pr:"middle_east", cl:"desert_cold" },
+  { n:"Zhaoqing", c:"Chine", lat:23.05, lon:112.46, v:0.2, p:1.553, pr:"japan", cl:"subtropical" },
+  { n:"Onitsha", c:"Nigeria", lat:6.15, lon:6.79, v:0.29, p:1.553, pr:"tropical_wet", cl:"tropical_rain" },
+  { n:"Mianyang", c:"Chine", lat:31.47, lon:104.68, v:0.2, p:1.55, pr:"japan", cl:"subtropical" },
+  { n:"Isfahan", c:"Iran", lat:32.65, lon:51.67, v:0.2, p:1.547, pr:"middle_east", cl:"desert_hot" },
+  { n:"Wanzhou", c:"Chine", lat:30.76, lon:108.4, v:0.2, p:1.546, pr:"japan", cl:"subtropical" },
+  { n:"Putian", c:"Chine", lat:25.44, lon:119.01, v:0.2, p:1.539, pr:"japan", cl:"subtropical" },
+  { n:"Kawasaki", c:"Japon", lat:35.52, lon:139.72, v:0.26, p:1.538, pr:"japan", cl:"subtropical" },
+  { n:"Shangqiu", c:"Chine", lat:34.45, lon:115.65, v:0.2, p:1.536, pr:"japan", cl:"subtropical" },
+  { n:"Goiânia", c:"Brésil", lat:-16.68, lon:-49.25, v:0.28, p:1.536, pr:"tropical_dry", cl:"tropical_savanna" },
+  { n:"San Antonio", c:"États-Unis", lat:29.42, lon:-98.49, v:0.26, p:1.527, pr:"us_city", cl:"subtropical" },
+  { n:"Kobe", c:"Japon", lat:34.69, lon:135.18, v:0.26, p:1.525, pr:"japan", cl:"subtropical" },
+  { n:"Ciudad Juárez", c:"Mexique", lat:31.72, lon:-106.46, v:0.2, p:1.512, pr:"middle_east", cl:"desert_hot" },
+  { n:"Cần Thơ", c:"Vietnam", lat:10.04, lon:105.79, v:0.28, p:1.507, pr:"tropical_wet", cl:"tropical_rain" },
+  { n:"Khulna", c:"Bangladesh", lat:22.81, lon:89.56, v:0.2, p:1.501, pr:"tropical_dry", cl:"tropical_monsoon" },
+  { n:"Belém", c:"Brésil", lat:-1.46, lon:-48.5, v:0.28, p:1.5, pr:"tropical_wet", cl:"tropical_rain" },
+  { n:"Yekaterinburg", c:"Russie", lat:56.85, lon:60.61, v:0.28, p:1.495, pr:"tropical_dry", cl:"tropical_savanna" },
+  { n:"Porto Alegre", c:"Brésil", lat:-30.03, lon:-51.23, v:0.2, p:1.488, pr:"south_hemi", cl:"sh_subtropical" },
+  { n:"Yinchuan", c:"Chine", lat:38.47, lon:106.27, v:0.2, p:1.488, pr:"japan", cl:"subtropical" },
+  { n:"Manhattan", c:"États-Unis", lat:40.78, lon:-73.97, v:0.26, p:1.488, pr:"us_city", cl:"continental_warm" },
+  { n:"Nashik", c:"Inde", lat:20.0, lon:73.79, v:0.2, p:1.486, pr:"tropical_dry", cl:"tropical_monsoon" },
+  { n:"Yiwu", c:"Chine", lat:29.32, lon:120.08, v:0.2, p:1.481, pr:"japan", cl:"subtropical" },
+  { n:"Zapopan", c:"Mexique", lat:20.72, lon:-103.39, v:0.2, p:1.476, pr:"middle_east", cl:"desert_hot" },
+  { n:"Daejeon", c:"Corée du Sud", lat:36.35, lon:127.38, v:0.2, p:1.47, pr:"japan", cl:"subtropical" },
+  { n:"Adelaide", c:"Australie", lat:-34.93, lon:138.6, v:0.2, p:1.469, pr:"south_hemi", cl:"sh_subtropical" },
+  { n:"Quanzhou", c:"Chine", lat:24.91, lon:118.59, v:0.2, p:1.469, pr:"japan", cl:"subtropical" },
+  { n:"Madurai", c:"Inde", lat:9.92, lon:78.12, v:0.2, p:1.466, pr:"tropical_dry", cl:"tropical_monsoon" },
+  { n:"Jinhua", c:"Chine", lat:29.11, lon:119.64, v:0.2, p:1.464, pr:"japan", cl:"subtropical" },
+  { n:"Cixi", c:"Chine", lat:30.18, lon:121.25, v:0.2, p:1.458, pr:"japan", cl:"subtropical" },
+  { n:"Changde", c:"Chine", lat:29.03, lon:111.7, v:0.2, p:1.457, pr:"japan", cl:"subtropical" },
+  { n:"Kaifeng", c:"Chine", lat:34.8, lon:114.31, v:0.19, p:1.452, pr:"japan", cl:"subtropical" },
+  { n:"Anshan", c:"Chine", lat:41.12, lon:122.99, v:0.19, p:1.45, pr:"euro_city", cl:"continental_warm" },
+  { n:"Karaj", c:"Iran", lat:35.83, lon:50.99, v:0.19, p:1.448, pr:"euro_city", cl:"continental_warm" },
+  { n:"Baoji", c:"Chine", lat:34.37, lon:107.24, v:0.19, p:1.438, pr:"japan", cl:"subtropical" },
+  { n:"Suqian", c:"Chine", lat:33.95, lon:118.3, v:0.19, p:1.438, pr:"japan", cl:"subtropical" },
+  { n:"Liuzhou", c:"Chine", lat:24.32, lon:109.41, v:0.19, p:1.437, pr:"japan", cl:"subtropical" },
+  { n:"Tirunelveli", c:"Inde", lat:8.73, lon:77.68, v:0.19, p:1.436, pr:"tropical_dry", cl:"tropical_monsoon" },
+  { n:"Kayseri", c:"Turquie", lat:38.73, lon:35.49, v:0.35, p:1.434, pr:"med_beach", cl:"mediterranean" },
+  { n:"Kharkiv", c:"Ukraine", lat:49.98, lon:36.25, v:0.19, p:1.434, pr:"euro_city", cl:"continental_warm" },
+  { n:"Konya", c:"Turquie", lat:37.87, lon:32.48, v:0.35, p:1.434, pr:"med_beach", cl:"mediterranean" },
+  { n:"Zhangjiagang", c:"Chine", lat:31.86, lon:120.54, v:0.19, p:1.432, pr:"japan", cl:"subtropical" },
+  { n:"Agra", c:"Inde", lat:27.18, lon:78.02, v:0.19, p:1.43, pr:"tropical_dry", cl:"tropical_monsoon" },
+  { n:"Tabriz", c:"Iran", lat:38.08, lon:46.29, v:0.19, p:1.425, pr:"euro_city", cl:"continental_warm" },
+  { n:"Makassar", c:"Indonésie", lat:-5.15, lon:119.43, v:0.27, p:1.424, pr:"tropical_wet", cl:"tropical_rain" },
+  { n:"Jinjiang", c:"Chine", lat:24.82, lon:118.57, v:0.19, p:1.416, pr:"japan", cl:"subtropical" },
+  { n:"Faridabad", c:"Inde", lat:28.41, lon:77.31, v:0.27, p:1.414, pr:"tropical_dry", cl:"tropical_savanna" },
+  { n:"Gwangju", c:"Corée du Sud", lat:35.15, lon:126.92, v:0.19, p:1.411, pr:"japan", cl:"subtropical" },
+  { n:"Bozhou", c:"Chine", lat:33.88, lon:115.77, v:0.19, p:1.409, pr:"japan", cl:"subtropical" },
+  { n:"Qujing", c:"Chine", lat:25.48, lon:103.78, v:0.19, p:1.409, pr:"japan", cl:"subtropical" },
+  { n:"South Tangerang", c:"Indonésie", lat:-6.29, lon:106.72, v:0.27, p:1.405, pr:"tropical_wet", cl:"tropical_rain" },
+  { n:"San Diego", c:"États-Unis", lat:32.72, lon:-117.16, v:0.25, p:1.404, pr:"us_city", cl:"desert_hot" },
+  { n:"Zhanjiang", c:"Chine", lat:21.23, lon:110.39, v:0.27, p:1.401, pr:"tropical_dry", cl:"tropical_savanna" },
+  { n:"Fushun", c:"Chine", lat:41.89, lon:123.94, v:0.19, p:1.401, pr:"euro_city", cl:"continental_warm" },
+  { n:"Rājkot", c:"Inde", lat:22.29, lon:70.79, v:0.19, p:1.391, pr:"tropical_dry", cl:"tropical_monsoon" },
+  { n:"Luoyang", c:"Chine", lat:34.67, lon:112.44, v:0.19, p:1.391, pr:"japan", cl:"subtropical" },
+  { n:"Guadalajara", c:"Mexique", lat:20.68, lon:-103.35, v:0.19, p:1.386, pr:"middle_east", cl:"desert_hot" },
+  { n:"The Bronx", c:"États-Unis", lat:40.85, lon:-73.87, v:0.24, p:1.385, pr:"us_city", cl:"continental_warm" },
+  { n:"Guankou", c:"Chine", lat:28.16, lon:113.63, v:0.19, p:1.38, pr:"japan", cl:"subtropical" },
+  { n:"Huế", c:"Vietnam", lat:16.46, lon:107.6, v:0.26, p:1.38, pr:"tropical_dry", cl:"tropical_savanna" },
+  { n:"Najafgarh", c:"Inde", lat:28.61, lon:76.98, v:0.26, p:1.365, pr:"tropical_dry", cl:"tropical_savanna" },
+  { n:"Handan", c:"Chine", lat:36.61, lon:114.49, v:0.19, p:1.358, pr:"japan", cl:"subtropical" },
+  { n:"Bannu", c:"Pakistan", lat:32.99, lon:70.6, v:0.19, p:1.358, pr:"middle_east", cl:"desert_cold" },
+  { n:"Yichang", c:"Chine", lat:30.71, lon:111.28, v:0.19, p:1.35, pr:"japan", cl:"subtropical" },
+  { n:"Heze", c:"Chine", lat:35.24, lon:115.47, v:0.18, p:1.347, pr:"japan", cl:"subtropical" },
+  { n:"Jamshedpur", c:"Inde", lat:22.8, lon:86.19, v:0.18, p:1.339, pr:"tropical_dry", cl:"tropical_monsoon" },
+  { n:"Douala", c:"Cameroun", lat:4.05, lon:9.7, v:0.26, p:1.338, pr:"tropical_wet", cl:"tropical_rain" },
+  { n:"Dallas", c:"États-Unis", lat:32.78, lon:-96.81, v:0.24, p:1.326, pr:"us_city", cl:"subtropical" },
+  { n:"Saitama", c:"Japon", lat:35.91, lon:139.66, v:0.24, p:1.325, pr:"japan", cl:"subtropical" },
+  { n:"Gorakhpur", c:"Inde", lat:29.45, lon:75.67, v:0.26, p:1.325, pr:"tropical_dry", cl:"tropical_savanna" },
+  { n:"Liupanshui", c:"Chine", lat:26.59, lon:104.83, v:0.18, p:1.321, pr:"japan", cl:"subtropical" },
+  { n:"Maoming", c:"Chine", lat:21.67, lon:110.91, v:0.25, p:1.308, pr:"tropical_dry", cl:"tropical_savanna" },
+  { n:"Calgary", c:"Canada", lat:51.05, lon:-114.09, v:0.18, p:1.307, pr:"euro_city", cl:"continental_warm" },
+  { n:"Callao", c:"Pérou", lat:-12.05, lon:-77.13, v:0.25, p:1.3, pr:"tropical_dry", cl:"tropical_savanna" },
+  { n:"Madinah", c:"Arabie saoudite", lat:24.47, lon:39.61, v:0.18, p:1.3, pr:"middle_east", cl:"desert_hot" },
+  { n:"Qinzhou", c:"Chine", lat:21.98, lon:108.65, v:0.25, p:1.296, pr:"tropical_dry", cl:"tropical_savanna" },
+  { n:"Luohe", c:"Chine", lat:33.56, lon:114.04, v:0.18, p:1.295, pr:"japan", cl:"subtropical" },
+  { n:"Xiangyang", c:"Chine", lat:32.04, lon:112.14, v:0.18, p:1.295, pr:"japan", cl:"subtropical" },
+  { n:"Yangjiang", c:"Chine", lat:21.86, lon:111.96, v:0.25, p:1.293, pr:"tropical_dry", cl:"tropical_savanna" },
+  { n:"Yixing", c:"Chine", lat:31.36, lon:119.82, v:0.18, p:1.286, pr:"japan", cl:"subtropical" },
+  { n:"Da Nang", c:"Vietnam", lat:16.07, lon:108.22, v:0.25, p:1.276, pr:"tropical_dry", cl:"tropical_savanna" },
+  { n:"Budta", c:"Philippines", lat:7.2, lon:124.44, v:0.25, p:1.274, pr:"tropical_wet", cl:"tropical_rain" },
+  { n:"Biên Hòa", c:"Vietnam", lat:10.94, lon:106.82, v:0.25, p:1.272, pr:"tropical_wet", cl:"tropical_rain" },
+  { n:"Xuchang", c:"Chine", lat:34.03, lon:113.86, v:0.18, p:1.266, pr:"japan", cl:"subtropical" },
+  { n:"Kalyān", c:"Inde", lat:19.24, lon:73.14, v:0.18, p:1.262, pr:"tropical_dry", cl:"tropical_monsoon" },
+  { n:"Zigong", c:"Chine", lat:29.34, lon:104.78, v:0.18, p:1.262, pr:"japan", cl:"subtropical" },
+  { n:"Nizhniy Novgorod", c:"Russie", lat:56.33, lon:44.0, v:0.18, p:1.259, pr:"euro_city", cl:"continental_warm" },
+  { n:"Jepara", c:"Indonésie", lat:-6.59, lon:110.67, v:0.25, p:1.258, pr:"tropical_wet", cl:"tropical_rain" },
+  { n:"Xuzhou", c:"Chine", lat:34.2, lon:117.28, v:0.18, p:1.254, pr:"japan", cl:"subtropical" },
+  { n:"Dammam", c:"Arabie saoudite", lat:26.43, lon:50.1, v:0.18, p:1.253, pr:"middle_east", cl:"desert_hot" },
+  { n:"Neijiang", c:"Chine", lat:29.58, lon:105.06, v:0.18, p:1.251, pr:"japan", cl:"subtropical" },
+  { n:"Shiraz", c:"Iran", lat:29.61, lon:52.53, v:0.18, p:1.25, pr:"middle_east", cl:"desert_hot" },
+  { n:"Heshan", c:"Chine", lat:28.57, lon:112.35, v:0.18, p:1.25, pr:"japan", cl:"subtropical" },
+  { n:"Kananga", c:"RD Congo", lat:-5.9, lon:22.42, v:0.25, p:1.247, pr:"tropical_wet", cl:"tropical_rain" },
+  { n:"Kazan", c:"Russie", lat:55.79, lon:49.12, v:0.17, p:1.244, pr:"euro_city", cl:"continental_warm" },
+  { n:"Jining", c:"Chine", lat:35.41, lon:116.58, v:0.17, p:1.241, pr:"japan", cl:"subtropical" },
+  { n:"Barquisimeto", c:"Venezuela", lat:10.06, lon:-69.36, v:0.24, p:1.241, pr:"tropical_dry", cl:"tropical_savanna" },
+  { n:"Shubrā al Khaymah", c:"Égypte", lat:30.13, lon:31.25, v:0.24, p:1.24, pr:"med_beach", cl:"mediterranean" },
+  { n:"Xinyang", c:"Chine", lat:32.12, lon:114.07, v:0.17, p:1.23, pr:"japan", cl:"subtropical" },
+  { n:"Liaocheng", c:"Chine", lat:36.45, lon:116.0, v:0.17, p:1.23, pr:"japan", cl:"subtropical" },
+  { n:"Jinzhong", c:"Chine", lat:37.68, lon:112.75, v:0.17, p:1.227, pr:"japan", cl:"subtropical" },
+  { n:"Meerut", c:"Inde", lat:28.98, lon:77.71, v:0.24, p:1.223, pr:"tropical_dry", cl:"tropical_savanna" },
+  { n:"Virār", c:"Inde", lat:19.46, lon:72.81, v:0.17, p:1.222, pr:"tropical_dry", cl:"tropical_monsoon" },
+  { n:"Nowrangapur", c:"Inde", lat:19.23, lon:82.55, v:0.17, p:1.221, pr:"tropical_dry", cl:"tropical_monsoon" },
+  { n:"Karbala", c:"Irak", lat:32.62, lon:44.02, v:0.17, p:1.219, pr:"middle_east", cl:"desert_hot" },
+  { n:"Changzhi", c:"Chine", lat:36.18, lon:113.11, v:0.17, p:1.215, pr:"japan", cl:"subtropical" },
+  { n:"Tianshui", c:"Chine", lat:34.58, lon:105.74, v:0.17, p:1.213, pr:"japan", cl:"subtropical" },
+  { n:"Mombasa", c:"Kenya", lat:-4.05, lon:39.66, v:0.24, p:1.208, pr:"tropical_wet", cl:"tropical_rain" },
+  { n:"Mandalay", c:"Birmanie", lat:21.97, lon:96.08, v:0.17, p:1.208, pr:"tropical_dry", cl:"tropical_monsoon" },
+  { n:"Srinagar", c:"Inde", lat:34.09, lon:74.81, v:0.17, p:1.206, pr:"middle_east", cl:"desert_cold" },
+  { n:"Barranquilla", c:"Colombie", lat:10.97, lon:-74.78, v:0.24, p:1.206, pr:"tropical_dry", cl:"tropical_savanna" },
+  { n:"Chelyabinsk", c:"Russie", lat:55.15, lon:61.43, v:0.24, p:1.202, pr:"tropical_dry", cl:"tropical_savanna" },
+  { n:"Mérida", c:"Mexique", lat:20.97, lon:-89.62, v:0.24, p:1.201, pr:"tropical_dry", cl:"tropical_savanna" },
+  { n:"Hiroshima", c:"Japon", lat:34.4, lon:132.45, v:0.22, p:1.201, pr:"japan", cl:"subtropical" },
+  { n:"Santiago de los Caballeros", c:"Rép. dominicaine", lat:19.45, lon:-70.69, v:0.24, p:1.2, pr:"tropical_dry", cl:"tropical_savanna" },
+  { n:"Shymkent", c:"Kazakhstan", lat:42.31, lon:69.6, v:0.17, p:1.2, pr:"euro_city", cl:"continental_warm" },
+  { n:"Weinan", c:"Chine", lat:34.5, lon:109.51, v:0.17, p:1.199, pr:"japan", cl:"subtropical" },
+  { n:"Ghāziābād", c:"Inde", lat:28.67, lon:77.44, v:0.24, p:1.199, pr:"tropical_dry", cl:"tropical_savanna" },
+  { n:"Matola", c:"Mozambique", lat:-25.96, lon:32.46, v:0.17, p:1.199, pr:"south_hemi", cl:"sh_subtropical" },
+  { n:"Dhanbad", c:"Inde", lat:23.8, lon:86.43, v:0.17, p:1.196, pr:"tropical_dry", cl:"tropical_monsoon" },
+  { n:"Suwon", c:"Corée du Sud", lat:37.29, lon:127.01, v:0.17, p:1.195, pr:"japan", cl:"subtropical" },
+  { n:"Fes", c:"Maroc", lat:34.03, lon:-5.0, v:0.24, p:1.192, pr:"med_beach", cl:"mediterranean" },
+  { n:"Gustavo Adolfo Madero", c:"Mexique", lat:19.49, lon:-99.11, v:0.24, p:1.186, pr:"tropical_dry", cl:"tropical_savanna" },
+  { n:"Kisangani", c:"RD Congo", lat:0.52, lon:25.19, v:0.24, p:1.182, pr:"tropical_wet", cl:"tropical_rain" },
+  { n:"Jiaxing", c:"Chine", lat:30.75, lon:120.75, v:0.17, p:1.18, pr:"japan", cl:"subtropical" },
+  { n:"Aurangabad", c:"Inde", lat:19.88, lon:75.34, v:0.17, p:1.175, pr:"tropical_dry", cl:"tropical_monsoon" },
+  { n:"Omsk", c:"Russie", lat:54.99, lon:73.37, v:0.17, p:1.172, pr:"euro_city", cl:"continental_warm" },
+  { n:"Guarulhos", c:"Brésil", lat:-23.46, lon:-46.53, v:0.17, p:1.17, pr:"south_hemi", cl:"sh_subtropical" },
+  { n:"Bandar Lampung", c:"Indonésie", lat:-5.43, lon:105.26, v:0.23, p:1.166, pr:"tropical_wet", cl:"tropical_rain" },
+  { n:"Varanasi", c:"Inde", lat:25.32, lon:83.01, v:0.17, p:1.164, pr:"tropical_dry", cl:"tropical_monsoon" },
+  { n:"Batam", c:"Indonésie", lat:1.15, lon:104.02, v:0.23, p:1.164, pr:"tropical_wet", cl:"tropical_rain" },
+  { n:"Jiujiang", c:"Chine", lat:29.7, lon:116.0, v:0.17, p:1.164, pr:"japan", cl:"subtropical" },
+  { n:"Samara", c:"Russie", lat:53.2, lon:50.15, v:0.17, p:1.163, pr:"euro_city", cl:"continental_warm" },
+  { n:"Aba", c:"Nigeria", lat:5.11, lon:7.37, v:0.23, p:1.16, pr:"tropical_wet", cl:"tropical_rain" },
+  { n:"Amritsar", c:"Inde", lat:31.62, lon:74.88, v:0.17, p:1.159, pr:"middle_east", cl:"desert_cold" },
+  { n:"Birmingham", c:"Royaume-Uni", lat:52.48, lon:-1.9, v:0.22, p:1.158, pr:"euro_city", cl:"oceanic" },
+  { n:"Anyang", c:"Chine", lat:36.1, lon:114.38, v:0.17, p:1.147, pr:"japan", cl:"subtropical" },
+  { n:"Vijayawada", c:"Inde", lat:16.51, lon:80.65, v:0.16, p:1.143, pr:"tropical_dry", cl:"tropical_monsoon" },
+  { n:"Bijie", c:"Chine", lat:27.3, lon:105.29, v:0.16, p:1.137, pr:"japan", cl:"subtropical" },
+  { n:"Monterrey", c:"Mexique", lat:25.68, lon:-100.32, v:0.16, p:1.136, pr:"middle_east", cl:"desert_hot" },
+  { n:"Rostov-na-Donu", c:"Russie", lat:47.23, lon:39.72, v:0.16, p:1.13, pr:"euro_city", cl:"continental_warm" },
+  { n:"Zhuzhou", c:"Chine", lat:27.83, lon:113.15, v:0.16, p:1.13, pr:"japan", cl:"subtropical" },
+  { n:"Bogor", c:"Indonésie", lat:-6.59, lon:106.79, v:0.23, p:1.127, pr:"tropical_wet", cl:"tropical_rain" },
+  { n:"Malingao", c:"Philippines", lat:7.16, lon:124.47, v:0.23, p:1.122, pr:"tropical_wet", cl:"tropical_rain" },
+  { n:"Touba", c:"Sénégal", lat:14.85, lon:-15.88, v:0.23, p:1.121, pr:"tropical_dry", cl:"tropical_savanna" },
+  { n:"Ufa", c:"Russie", lat:54.74, lon:55.97, v:0.16, p:1.121, pr:"euro_city", cl:"continental_warm" },
+  { n:"Ranchi", c:"Inde", lat:23.34, lon:85.31, v:0.16, p:1.12, pr:"tropical_dry", cl:"tropical_monsoon" },
+  { n:"Shangrao", c:"Chine", lat:28.45, lon:117.94, v:0.16, p:1.116, pr:"japan", cl:"subtropical" },
+  { n:"Huaibei", c:"Chine", lat:33.97, lon:116.79, v:0.16, p:1.113, pr:"japan", cl:"subtropical" },
+  { n:"Maiduguri", c:"Nigeria", lat:11.85, lon:13.16, v:0.23, p:1.11, pr:"tropical_dry", cl:"tropical_savanna" },
+  { n:"Meishan", c:"Chine", lat:30.04, lon:103.84, v:0.16, p:1.108, pr:"japan", cl:"subtropical" },
+  { n:"Ciudad Nezahualcoyotl", c:"Mexique", lat:19.4, lon:-99.01, v:0.23, p:1.105, pr:"tropical_dry", cl:"tropical_savanna" },
+  { n:"Mwanza", c:"Tanzanie", lat:-2.52, lon:32.9, v:0.23, p:1.105, pr:"tropical_wet", cl:"tropical_rain" },
+  { n:"Ulsan", c:"Corée du Sud", lat:35.54, lon:129.32, v:0.16, p:1.099, pr:"japan", cl:"subtropical" },
+  { n:"Sendai", c:"Japon", lat:38.27, lon:140.87, v:0.21, p:1.097, pr:"japan", cl:"subtropical" },
+  { n:"Krasnoyarsk", c:"Russie", lat:56.03, lon:92.91, v:0.22, p:1.091, pr:"tropical_dry", cl:"tropical_savanna" },
+  { n:"Guigang", c:"Chine", lat:23.12, lon:109.59, v:0.16, p:1.086, pr:"japan", cl:"subtropical" },
+  { n:"Pekanbaru", c:"Indonésie", lat:0.52, lon:101.44, v:0.22, p:1.085, pr:"tropical_wet", cl:"tropical_rain" },
+  { n:"Jabalpur", c:"Inde", lat:23.17, lon:79.95, v:0.16, p:1.082, pr:"tropical_dry", cl:"tropical_monsoon" },
+  { n:"Ilorin", c:"Nigeria", lat:8.5, lon:4.54, v:0.22, p:1.08, pr:"tropical_wet", cl:"tropical_rain" },
+  { n:"Aden", c:"Yémen", lat:12.78, lon:45.04, v:0.22, p:1.08, pr:"tropical_dry", cl:"tropical_savanna" },
+  { n:"Hengyang", c:"Chine", lat:26.89, lon:112.62, v:0.16, p:1.076, pr:"japan", cl:"subtropical" },
+  { n:"Goyang-si", c:"Corée du Sud", lat:37.66, lon:126.83, v:0.16, p:1.075, pr:"japan", cl:"subtropical" },
+  { n:"Prayagraj", c:"Inde", lat:25.44, lon:81.84, v:0.16, p:1.073, pr:"tropical_dry", cl:"tropical_monsoon" },
+  { n:"Visakhapatnam", c:"Inde", lat:17.68, lon:83.2, v:0.16, p:1.063, pr:"tropical_dry", cl:"tropical_monsoon" },
+  { n:"Yulin", c:"Chine", lat:22.63, lon:110.15, v:0.22, p:1.057, pr:"tropical_dry", cl:"tropical_savanna" },
+  { n:"Jodhpur", c:"Inde", lat:26.27, lon:73.01, v:0.16, p:1.056, pr:"tropical_dry", cl:"tropical_monsoon" },
+  { n:"Gwalior", c:"Inde", lat:26.23, lon:78.17, v:0.16, p:1.054, pr:"tropical_dry", cl:"tropical_monsoon" },
+  { n:"Jingzhou", c:"Chine", lat:30.35, lon:112.19, v:0.16, p:1.052, pr:"japan", cl:"subtropical" },
+  { n:"Port Elizabeth", c:"Afrique du Sud", lat:-33.96, lon:25.61, v:0.16, p:1.05, pr:"south_hemi", cl:"sh_subtropical" },
+  { n:"Voronezh", c:"Russie", lat:51.67, lon:39.18, v:0.15, p:1.048, pr:"euro_city", cl:"continental_warm" },
+  { n:"Xinxiang", c:"Chine", lat:35.19, lon:113.8, v:0.15, p:1.047, pr:"japan", cl:"subtropical" },
+  { n:"Yichun", c:"Chine", lat:27.83, lon:114.4, v:0.15, p:1.046, pr:"japan", cl:"subtropical" },
+  { n:"Sokoto", c:"Nigeria", lat:13.06, lon:5.24, v:0.22, p:1.04, pr:"tropical_dry", cl:"tropical_savanna" },
+  { n:"Jos", c:"Nigeria", lat:9.93, lon:8.89, v:0.22, p:1.04, pr:"tropical_wet", cl:"tropical_rain" },
+  { n:"Tangier", c:"Maroc", lat:35.77, lon:-5.8, v:0.22, p:1.035, pr:"med_beach", cl:"mediterranean" },
+  { n:"Teni", c:"Inde", lat:10.01, lon:77.48, v:0.15, p:1.035, pr:"tropical_dry", cl:"tropical_monsoon" },
+  { n:"Xianyang", c:"Chine", lat:34.34, lon:108.7, v:0.15, p:1.034, pr:"japan", cl:"subtropical" },
+  { n:"Mexicali", c:"Mexique", lat:32.63, lon:-115.45, v:0.15, p:1.033, pr:"middle_east", cl:"desert_hot" },
+  { n:"Pointe-Noire", c:"Congo", lat:-4.78, lon:11.86, v:0.21, p:1.032, pr:"tropical_wet", cl:"tropical_rain" },
+  { n:"Maceió", c:"Brésil", lat:-9.67, lon:-35.74, v:0.21, p:1.032, pr:"tropical_wet", cl:"tropical_rain" },
+  { n:"Campinas", c:"Brésil", lat:-22.91, lon:-47.06, v:0.21, p:1.032, pr:"tropical_dry", cl:"tropical_savanna" },
+  { n:"Sanya", c:"Chine", lat:18.25, lon:109.51, v:0.21, p:1.031, pr:"tropical_dry", cl:"tropical_savanna" },
+  { n:"Rangpur", c:"Bangladesh", lat:25.75, lon:89.25, v:0.15, p:1.031, pr:"tropical_dry", cl:"tropical_monsoon" },
+  { n:"Kirkuk", c:"Irak", lat:35.47, lon:44.39, v:0.15, p:1.031, pr:"euro_city", cl:"continental_warm" },
+  { n:"Comilla", c:"Bangladesh", lat:23.46, lon:91.19, v:0.15, p:1.03, pr:"tropical_dry", cl:"tropical_monsoon" },
+  { n:"Shaoguan", c:"Chine", lat:24.8, lon:113.58, v:0.15, p:1.028, pr:"japan", cl:"subtropical" },
+  { n:"Howrah", c:"Inde", lat:22.58, lon:88.32, v:0.15, p:1.028, pr:"tropical_dry", cl:"tropical_monsoon" },
+  { n:"Raipur", c:"Inde", lat:21.23, lon:81.63, v:0.15, p:1.027, pr:"tropical_dry", cl:"tropical_monsoon" },
+  { n:"Changwon", c:"Corée du Sud", lat:35.23, lon:128.68, v:0.15, p:1.026, pr:"japan", cl:"subtropical" },
+  { n:"Longyan", c:"Chine", lat:25.07, lon:117.02, v:0.15, p:1.025, pr:"japan", cl:"subtropical" },
+  { n:"Tiruchirappalli", c:"Inde", lat:10.82, lon:78.7, v:0.15, p:1.023, pr:"tropical_dry", cl:"tropical_monsoon" },
+  { n:"Yongzhou", c:"Chine", lat:26.42, lon:111.61, v:0.15, p:1.021, pr:"japan", cl:"subtropical" },
+  { n:"Ottawa", c:"Canada", lat:45.41, lon:-75.7, v:0.15, p:1.017, pr:"euro_city", cl:"continental_warm" },
+  { n:"Huzhou", c:"Chine", lat:30.87, lon:120.09, v:0.15, p:1.016, pr:"japan", cl:"subtropical" },
+  { n:"Odesa", c:"Ukraine", lat:46.49, lon:30.74, v:0.15, p:1.016, pr:"euro_city", cl:"continental_warm" },
+  { n:"Volgograd", c:"Russie", lat:48.72, lon:44.5, v:0.15, p:1.014, pr:"euro_city", cl:"continental_warm" },
+  { n:"Edmonton", c:"Canada", lat:53.55, lon:-113.47, v:0.15, p:1.011, pr:"euro_city", cl:"continental_warm" },
+  { n:"Wuwei", c:"Chine", lat:37.93, lon:102.63, v:0.15, p:1.01, pr:"japan", cl:"subtropical" },
+  { n:"Jacksonville", c:"États-Unis", lat:30.33, lon:-81.66, v:0.2, p:1.01, pr:"us_city", cl:"subtropical" },
+  { n:"Arequipa", c:"Pérou", lat:-16.4, lon:-71.54, v:0.21, p:1.008, pr:"tropical_dry", cl:"tropical_savanna" },
+  { n:"Fort Worth", c:"États-Unis", lat:32.73, lon:-97.32, v:0.2, p:1.008, pr:"us_city", cl:"subtropical" },
+  { n:"Hanzhong", c:"Chine", lat:33.08, lon:107.02, v:0.15, p:1.007, pr:"japan", cl:"subtropical" },
+  { n:"Hezhou", c:"Chine", lat:24.4, lon:111.57, v:0.15, p:1.005, pr:"japan", cl:"subtropical" },
+  { n:"Kota", c:"Inde", lat:25.18, lon:75.84, v:0.15, p:1.002, pr:"tropical_dry", cl:"tropical_monsoon" },
+  { n:"Zhu Cheng City", c:"Chine", lat:36.0, lon:119.4, v:0.15, p:1.0, pr:"japan", cl:"subtropical" },
+  { n:"Dongying", c:"Chine", lat:37.46, lon:118.49, v:0.15, p:0.999, pr:"japan", cl:"subtropical" },
+  { n:"Luzhou", c:"Chine", lat:28.89, lon:105.43, v:0.15, p:0.999, pr:"japan", cl:"subtropical" },
+  { n:"San Jose", c:"États-Unis", lat:37.34, lon:-121.89, v:0.19, p:0.997, pr:"us_city", cl:"continental_warm" },
+  { n:"Sholapur", c:"Inde", lat:17.67, lon:75.91, v:0.15, p:0.997, pr:"tropical_dry", cl:"tropical_monsoon" },
+  { n:"Meizhou", c:"Chine", lat:24.29, lon:116.12, v:0.15, p:0.992, pr:"japan", cl:"subtropical" },
+  { n:"Yueyang", c:"Chine", lat:29.37, lon:113.09, v:0.15, p:0.991, pr:"japan", cl:"subtropical" },
+  { n:"Laiwu", c:"Chine", lat:36.19, lon:117.66, v:0.15, p:0.99, pr:"japan", cl:"subtropical" },
+  { n:"Benxi", c:"Chine", lat:41.29, lon:123.77, v:0.15, p:0.988, pr:"euro_city", cl:"continental_warm" },
+  { n:"Perm", c:"Russie", lat:58.01, lon:56.25, v:0.15, p:0.982, pr:"euro_xmas", cl:"subarctic" },
+  { n:"Zaria", c:"Nigeria", lat:11.11, lon:7.72, v:0.21, p:0.98, pr:"tropical_dry", cl:"tropical_savanna" },
+  { n:"Chiba", c:"Japon", lat:35.6, lon:140.12, v:0.19, p:0.98, pr:"japan", cl:"subtropical" },
+  { n:"Pingdingshan", c:"Chine", lat:33.74, lon:113.3, v:0.15, p:0.979, pr:"japan", cl:"subtropical" },
+  { n:"Ciudad Guayana", c:"Venezuela", lat:8.35, lon:-62.64, v:0.21, p:0.978, pr:"tropical_dry", cl:"tropical_savanna" },
+  { n:"Zamboanga", c:"Philippines", lat:6.91, lon:122.07, v:0.21, p:0.977, pr:"tropical_wet", cl:"tropical_rain" },
+  { n:"Sargodha", c:"Pakistan", lat:32.09, lon:72.67, v:0.15, p:0.976, pr:"middle_east", cl:"desert_cold" },
+  { n:"Austin", c:"États-Unis", lat:30.27, lon:-97.74, v:0.19, p:0.974, pr:"us_city", cl:"subtropical" },
+  { n:"Bengbu", c:"Chine", lat:32.94, lon:117.36, v:0.15, p:0.973, pr:"japan", cl:"subtropical" },
+  { n:"Salé", c:"Maroc", lat:34.05, lon:-6.8, v:0.21, p:0.972, pr:"med_beach", cl:"mediterranean" },
+  { n:"Chandigarh", c:"Inde", lat:30.74, lon:76.79, v:0.15, p:0.971, pr:"middle_east", cl:"desert_cold" },
+  { n:"Dnipro", c:"Ukraine", lat:48.47, lon:35.04, v:0.15, p:0.969, pr:"euro_city", cl:"continental_warm" },
+  { n:"Cebu City", c:"Philippines", lat:10.32, lon:123.89, v:0.2, p:0.964, pr:"tropical_wet", cl:"tropical_rain" },
+  { n:"Köln", c:"Allemagne", lat:50.93, lon:6.95, v:0.19, p:0.963, pr:"euro_city", cl:"oceanic" },
+  { n:"Tiruppur", c:"Inde", lat:11.12, lon:77.35, v:0.15, p:0.963, pr:"tropical_dry", cl:"tropical_monsoon" },
+  { n:"Guwahati", c:"Inde", lat:26.18, lon:91.75, v:0.15, p:0.962, pr:"tropical_dry", cl:"tropical_monsoon" },
+  { n:"Xiangtan", c:"Chine", lat:27.85, lon:112.9, v:0.15, p:0.959, pr:"japan", cl:"subtropical" },
+  { n:"Linfen", c:"Chine", lat:36.09, lon:111.52, v:0.15, p:0.959, pr:"japan", cl:"subtropical" },
+  { n:"Zhenjiang", c:"Chine", lat:32.21, lon:119.46, v:0.14, p:0.951, pr:"japan", cl:"subtropical" },
+  { n:"Enugu", c:"Nigeria", lat:6.44, lon:7.5, v:0.2, p:0.95, pr:"tropical_wet", cl:"tropical_rain" },
+  { n:"Rosario", c:"Argentine", lat:-32.95, lon:-60.64, v:0.14, p:0.948, pr:"south_hemi", cl:"sh_subtropical" },
+  { n:"Hubballi", c:"Inde", lat:15.35, lon:75.13, v:0.14, p:0.944, pr:"tropical_dry", cl:"tropical_monsoon" },
+  { n:"Kitakyushu", c:"Japon", lat:33.85, lon:130.85, v:0.19, p:0.941, pr:"japan", cl:"subtropical" },
+  { n:"Taiz", c:"Yémen", lat:13.58, lon:44.02, v:0.2, p:0.941, pr:"tropical_dry", cl:"tropical_savanna" },
+  { n:"Setagaya", c:"Japon", lat:35.64, lon:139.65, v:0.19, p:0.94, pr:"japan", cl:"subtropical" },
+  { n:"Baoshan", c:"Chine", lat:25.12, lon:99.16, v:0.14, p:0.936, pr:"tropical_dry", cl:"tropical_monsoon" },
+  { n:"Rui’an", c:"Chine", lat:27.78, lon:120.66, v:0.14, p:0.927, pr:"japan", cl:"subtropical" },
+  { n:"Chihuahua", c:"Mexique", lat:28.64, lon:-106.09, v:0.14, p:0.926, pr:"middle_east", cl:"desert_hot" },
+  { n:"Mysuru", c:"Inde", lat:12.3, lon:76.64, v:0.14, p:0.921, pr:"tropical_dry", cl:"tropical_monsoon" },
+  { n:"Trujillo", c:"Pérou", lat:-8.12, lon:-79.03, v:0.2, p:0.92, pr:"tropical_wet", cl:"tropical_rain" },
+  { n:"Salem", c:"Inde", lat:11.65, lon:78.16, v:0.14, p:0.917, pr:"tropical_dry", cl:"tropical_monsoon" },
+  { n:"São Luís", c:"Brésil", lat:-2.53, lon:-44.3, v:0.2, p:0.917, pr:"tropical_wet", cl:"tropical_rain" },
+  { n:"Seongnam-si", c:"Corée du Sud", lat:37.44, lon:127.14, v:0.14, p:0.915, pr:"japan", cl:"subtropical" },
+  { n:"Cartagena", c:"Colombie", lat:10.4, lon:-75.49, v:0.2, p:0.915, pr:"tropical_dry", cl:"tropical_savanna" },
+  { n:"Columbus", c:"États-Unis", lat:39.96, lon:-83.0, v:0.18, p:0.913, pr:"us_city", cl:"subtropical" },
+  { n:"Sialkot", c:"Pakistan", lat:32.49, lon:74.53, v:0.14, p:0.912, pr:"middle_east", cl:"desert_cold" },
+  { n:"Charlotte", c:"États-Unis", lat:35.23, lon:-80.84, v:0.18, p:0.911, pr:"us_city", cl:"subtropical" },
+  { n:"Laibin", c:"Chine", lat:23.75, lon:109.22, v:0.14, p:0.91, pr:"japan", cl:"subtropical" },
+  { n:"Warri", c:"Nigeria", lat:5.52, lon:5.75, v:0.2, p:0.91, pr:"tropical_wet", cl:"tropical_rain" },
+  { n:"Padang", c:"Indonésie", lat:-0.95, lon:100.35, v:0.2, p:0.909, pr:"tropical_wet", cl:"tropical_rain" },
+  { n:"Xiaogan", c:"Chine", lat:30.93, lon:113.92, v:0.14, p:0.908, pr:"japan", cl:"subtropical" },
+  { n:"Campo Grande", c:"Brésil", lat:-20.44, lon:-54.65, v:0.2, p:0.906, pr:"tropical_dry", cl:"tropical_savanna" },
+  { n:"Ziyang", c:"Chine", lat:30.12, lon:104.65, v:0.14, p:0.906, pr:"japan", cl:"subtropical" },
+  { n:"Bobo-Dioulasso", c:"Burkina Faso", lat:11.18, lon:-4.3, v:0.2, p:0.905, pr:"tropical_dry", cl:"tropical_savanna" },
+  { n:"Bahawalpur", c:"Pakistan", lat:29.4, lon:71.68, v:0.2, p:0.904, pr:"tropical_dry", cl:"tropical_savanna" },
+  { n:"Quzhou", c:"Chine", lat:28.96, lon:118.87, v:0.14, p:0.903, pr:"japan", cl:"subtropical" },
+  { n:"Blantyre", c:"Malawi", lat:-15.78, lon:35.01, v:0.2, p:0.903, pr:"tropical_dry", cl:"tropical_savanna" },
+  { n:"Donetsk", c:"Ukraine", lat:48.02, lon:37.8, v:0.14, p:0.902, pr:"euro_city", cl:"continental_warm" },
+  { n:"Abū Ghurayb", c:"Irak", lat:33.31, lon:44.18, v:0.14, p:0.9, pr:"middle_east", cl:"desert_hot" },
+  { n:"Qom", c:"Iran", lat:34.64, lon:50.88, v:0.14, p:0.9, pr:"middle_east", cl:"desert_hot" },
+  { n:"Zaozhuang", c:"Chine", lat:34.86, lon:117.55, v:0.14, p:0.9, pr:"japan", cl:"subtropical" },
+  { n:"Krasnodar", c:"Russie", lat:45.04, lon:38.98, v:0.19, p:0.9, pr:"euro_city", cl:"mediterranean" },
+  { n:"Natal", c:"Brésil", lat:-5.79, lon:-35.21, v:0.19, p:0.897, pr:"tropical_wet", cl:"tropical_rain" },
+  { n:"Pingxiang", c:"Chine", lat:27.62, lon:113.85, v:0.14, p:0.894, pr:"japan", cl:"subtropical" },
+  { n:"Indianapolis", c:"États-Unis", lat:39.77, lon:-86.16, v:0.18, p:0.888, pr:"us_city", cl:"subtropical" },
+  { n:"Gurugram", c:"Inde", lat:28.46, lon:77.03, v:0.19, p:0.887, pr:"tropical_dry", cl:"tropical_savanna" },
+  { n:"Bhubaneswar", c:"Inde", lat:20.27, lon:85.83, v:0.14, p:0.885, pr:"tropical_dry", cl:"tropical_monsoon" },
+  { n:"Zhoushan", c:"Chine", lat:29.99, lon:122.2, v:0.14, p:0.883, pr:"japan", cl:"subtropical" },
+  { n:"Qiqihar", c:"Chine", lat:47.34, lon:123.96, v:0.14, p:0.882, pr:"euro_city", cl:"continental_warm" },
+  { n:"Klang", c:"Malaisie", lat:3.04, lon:101.44, v:0.19, p:0.88, pr:"tropical_wet", cl:"tropical_rain" },
+  { n:"As Sulaymānīyah", c:"Irak", lat:35.56, lon:45.43, v:0.14, p:0.878, pr:"euro_city", cl:"continental_warm" },
+  { n:"Puning", c:"Chine", lat:23.31, lon:116.17, v:0.14, p:0.875, pr:"japan", cl:"subtropical" },
+  { n:"Pikine", c:"Sénégal", lat:14.76, lon:-17.39, v:0.19, p:0.874, pr:"tropical_dry", cl:"tropical_savanna" },
+  { n:"Bhiwandi", c:"Inde", lat:19.3, lon:73.06, v:0.14, p:0.874, pr:"tropical_dry", cl:"tropical_monsoon" },
+  { n:"Soshanguve", c:"Afrique du Sud", lat:-25.47, lon:28.1, v:0.14, p:0.872, pr:"south_hemi", cl:"sh_subtropical" },
+  { n:"Teresina", c:"Brésil", lat:-5.09, lon:-42.8, v:0.19, p:0.871, pr:"tropical_wet", cl:"tropical_rain" },
+  { n:"Marseille", c:"France", lat:43.3, lon:5.38, v:0.25, p:0.871, pr:"med_beach", cl:"mediterranean" },
+  { n:"Ankang", c:"Chine", lat:32.68, lon:109.02, v:0.14, p:0.87, pr:"japan", cl:"subtropical" },
+  { n:"Jalandhar", c:"Inde", lat:31.33, lon:75.58, v:0.14, p:0.869, pr:"middle_east", cl:"desert_cold" },
+  { n:"Langfang", c:"Chine", lat:39.52, lon:116.71, v:0.14, p:0.868, pr:"japan", cl:"subtropical" },
+  { n:"Jiaozuo", c:"Chine", lat:35.24, lon:113.24, v:0.14, p:0.865, pr:"japan", cl:"subtropical" },
+  { n:"Rohini", c:"Inde", lat:28.74, lon:77.07, v:0.19, p:0.86, pr:"tropical_dry", cl:"tropical_savanna" },
+  { n:"Guang’an", c:"Chine", lat:30.47, lon:106.64, v:0.13, p:0.858, pr:"japan", cl:"subtropical" },
+  { n:"Johor Bahru", c:"Malaisie", lat:1.47, lon:103.76, v:0.19, p:0.858, pr:"tropical_wet", cl:"tropical_rain" },
+  { n:"Cheongju-si", c:"Corée du Sud", lat:36.64, lon:127.49, v:0.13, p:0.854, pr:"japan", cl:"subtropical" },
+  { n:"Kanayannur", c:"Inde", lat:9.97, lon:76.27, v:0.13, p:0.851, pr:"tropical_dry", cl:"tropical_monsoon" },
+  { n:"Bucheon-si", c:"Corée du Sud", lat:37.5, lon:126.78, v:0.13, p:0.851, pr:"japan", cl:"subtropical" },
+  { n:"Thanh Hóa", c:"Vietnam", lat:19.8, lon:105.77, v:0.19, p:0.85, pr:"tropical_dry", cl:"tropical_savanna" },
+  { n:"Turin", c:"Italie", lat:45.07, lon:7.69, v:0.24, p:0.847, pr:"euro_city", cl:"mediterranean" },
+  { n:"Malang", c:"Indonésie", lat:-7.98, lon:112.63, v:0.19, p:0.847, pr:"tropical_wet", cl:"tropical_rain" },
+  { n:"Al Ain City", c:"Émirats AU", lat:24.19, lon:55.76, v:0.19, p:0.847, pr:"tropical_dry", cl:"tropical_savanna" },
+  { n:"Saratov", c:"Russie", lat:51.54, lon:46.01, v:0.13, p:0.845, pr:"euro_city", cl:"continental_warm" },
+  { n:"Weihai", c:"Chine", lat:37.51, lon:122.11, v:0.13, p:0.844, pr:"japan", cl:"subtropical" },
+  { n:"Takeo", c:"Cambodge", lat:10.99, lon:104.78, v:0.19, p:0.844, pr:"tropical_wet", cl:"tropical_rain" },
+  { n:"Cochabamba", c:"Bolivie", lat:-17.38, lon:-66.16, v:0.19, p:0.841, pr:"tropical_dry", cl:"tropical_savanna" },
+  { n:"Ahvaz", c:"Iran", lat:31.32, lon:48.68, v:0.13, p:0.841, pr:"middle_east", cl:"desert_hot" },
+  { n:"Zhabei", c:"Chine", lat:31.26, lon:121.46, v:0.13, p:0.84, pr:"japan", cl:"subtropical" },
+  { n:"Xinyu", c:"Chine", lat:27.8, lon:114.93, v:0.13, p:0.839, pr:"japan", cl:"subtropical" },
+  { n:"Pietermaritzburg", c:"Afrique du Sud", lat:-29.62, lon:30.39, v:0.13, p:0.839, pr:"south_hemi", cl:"sh_subtropical" },
+  { n:"Yibin", c:"Chine", lat:28.76, lon:104.64, v:0.13, p:0.836, pr:"japan", cl:"subtropical" },
+  { n:"Naucalpan de Juárez", c:"Mexique", lat:19.48, lon:-99.24, v:0.19, p:0.834, pr:"tropical_dry", cl:"tropical_savanna" },
+  { n:"Kampung Baru Subang", c:"Malaisie", lat:3.15, lon:101.53, v:0.18, p:0.834, pr:"tropical_wet", cl:"tropical_rain" },
+  { n:"Bouaké", c:"Côte d'Ivoire", lat:7.69, lon:-5.03, v:0.18, p:0.832, pr:"tropical_wet", cl:"tropical_rain" },
+  { n:"Samarinda", c:"Indonésie", lat:-0.49, lon:117.15, v:0.18, p:0.831, pr:"tropical_wet", cl:"tropical_rain" },
+  { n:"Taicang", c:"Chine", lat:31.45, lon:121.09, v:0.13, p:0.831, pr:"japan", cl:"subtropical" },
+  { n:"Sakai", c:"Japon", lat:34.58, lon:135.47, v:0.17, p:0.826, pr:"japan", cl:"subtropical" },
+  { n:"Nova Iguaçu", c:"Brésil", lat:-22.76, lon:-43.45, v:0.18, p:0.823, pr:"tropical_dry", cl:"tropical_savanna" },
+  { n:"Chenzhou", c:"Chine", lat:25.8, lon:113.03, v:0.13, p:0.823, pr:"japan", cl:"subtropical" },
+  { n:"Duque de Caxias", c:"Brésil", lat:-22.79, lon:-43.31, v:0.18, p:0.818, pr:"tropical_dry", cl:"tropical_savanna" },
+  { n:"João Pessoa", c:"Brésil", lat:-7.12, lon:-34.86, v:0.18, p:0.818, pr:"tropical_wet", cl:"tropical_rain" },
+  { n:"Bukavu", c:"RD Congo", lat:-2.49, lon:28.84, v:0.18, p:0.817, pr:"tropical_wet", cl:"tropical_rain" },
+  { n:"Hermosillo", c:"Mexique", lat:29.09, lon:-110.97, v:0.13, p:0.812, pr:"middle_east", cl:"desert_hot" },
+  { n:"Bhayandar", c:"Inde", lat:19.3, lon:72.85, v:0.13, p:0.809, pr:"tropical_dry", cl:"tropical_monsoon" },
+  { n:"Culiacán", c:"Mexique", lat:24.8, lon:-107.39, v:0.13, p:0.808, pr:"middle_east", cl:"desert_hot" },
+  { n:"Petaling Jaya", c:"Malaisie", lat:3.11, lon:101.61, v:0.18, p:0.808, pr:"tropical_wet", cl:"tropical_rain" },
+  { n:"Malatya", c:"Turquie", lat:38.35, lon:38.32, v:0.23, p:0.806, pr:"med_beach", cl:"mediterranean" },
+  { n:"Anqing", c:"Chine", lat:30.51, lon:117.05, v:0.13, p:0.804, pr:"japan", cl:"subtropical" },
+  { n:"Oran", c:"Algérie", lat:35.7, lon:-0.64, v:0.18, p:0.803, pr:"med_beach", cl:"mediterranean" },
+  { n:"San Pedro Sula", c:"Honduras", lat:15.51, lon:-88.03, v:0.18, p:0.801, pr:"tropical_dry", cl:"tropical_savanna" },
+  { n:"Narela", c:"Inde", lat:28.85, lon:77.09, v:0.18, p:0.8, pr:"tropical_dry", cl:"tropical_savanna" },
+  { n:"Xingtai", c:"Chine", lat:37.06, lon:114.49, v:0.13, p:0.799, pr:"japan", cl:"subtropical" },
+  { n:"Niigata", c:"Japon", lat:37.92, lon:139.04, v:0.17, p:0.798, pr:"japan", cl:"subtropical" },
+  { n:"Zarqa", c:"Jordanie", lat:32.07, lon:36.09, v:0.18, p:0.793, pr:"med_beach", cl:"mediterranean" },
+  { n:"Hamamatsu", c:"Japon", lat:34.7, lon:137.73, v:0.17, p:0.792, pr:"japan", cl:"subtropical" },
+  { n:"Kolwezi", c:"RD Congo", lat:-10.71, lon:25.47, v:0.18, p:0.79, pr:"tropical_dry", cl:"tropical_savanna" },
+  { n:"Vinh", c:"Vietnam", lat:18.67, lon:105.69, v:0.18, p:0.79, pr:"tropical_dry", cl:"tropical_savanna" },
+  { n:"Eskişehir", c:"Turquie", lat:39.78, lon:30.52, v:0.23, p:0.789, pr:"med_beach", cl:"mediterranean" },
+  { n:"Thiruvananthapuram", c:"Inde", lat:8.49, lon:76.95, v:0.13, p:0.788, pr:"tropical_dry", cl:"tropical_monsoon" },
+  { n:"Pasragad Branch", c:"Iran", lat:34.78, lon:48.47, v:0.13, p:0.788, pr:"middle_east", cl:"desert_hot" },
+  { n:"Zhaotong", c:"Chine", lat:27.32, lon:103.72, v:0.13, p:0.788, pr:"japan", cl:"subtropical" },
+  { n:"Panzhihua", c:"Chine", lat:26.59, lon:101.71, v:0.13, p:0.787, pr:"japan", cl:"subtropical" },
+  { n:"Chuzhou", c:"Chine", lat:32.32, lon:118.3, v:0.13, p:0.783, pr:"japan", cl:"subtropical" },
+  { n:"Seattle", c:"États-Unis", lat:47.61, lon:-122.33, v:0.16, p:0.781, pr:"us_city", cl:"continental_warm" },
+  { n:"Port Said", c:"Égypte", lat:31.27, lon:32.3, v:0.18, p:0.781, pr:"med_beach", cl:"mediterranean" },
+  { n:"Cúcuta", c:"Colombie", lat:7.91, lon:-72.5, v:0.18, p:0.777, pr:"tropical_wet", cl:"tropical_rain" },
+  { n:"Homs", c:"Syrie", lat:34.72, lon:36.73, v:0.18, p:0.775, pr:"med_beach", cl:"mediterranean" },
+  { n:"Xuancheng", c:"Chine", lat:30.95, lon:118.76, v:0.13, p:0.774, pr:"japan", cl:"subtropical" },
+  { n:"Ibb", c:"Yémen", lat:13.97, lon:44.18, v:0.18, p:0.772, pr:"tropical_dry", cl:"tropical_savanna" },
+  { n:"Nampula", c:"Mozambique", lat:-15.12, lon:39.27, v:0.17, p:0.77, pr:"tropical_dry", cl:"tropical_savanna" },
+  { n:"Shangyu", c:"Chine", lat:30.02, lon:120.87, v:0.12, p:0.77, pr:"japan", cl:"subtropical" },
+  { n:"Bujumbura", c:"Burundi", lat:-3.38, lon:29.36, v:0.17, p:0.769, pr:"tropical_wet", cl:"tropical_rain" },
+  { n:"Łódź", c:"Pologne", lat:51.77, lon:19.47, v:0.12, p:0.769, pr:"euro_city", cl:"continental_warm" },
+  { n:"Tyumen", c:"Russie", lat:57.15, lon:65.53, v:0.17, p:0.768, pr:"tropical_dry", cl:"tropical_savanna" },
+  { n:"Erzurum", c:"Turquie", lat:39.91, lon:41.28, v:0.16, p:0.768, pr:"euro_city", cl:"continental_warm" },
+  { n:"Anshun", c:"Chine", lat:26.25, lon:105.93, v:0.12, p:0.765, pr:"japan", cl:"subtropical" },
+  { n:"Rajshahi", c:"Bangladesh", lat:24.37, lon:88.6, v:0.12, p:0.764, pr:"tropical_dry", cl:"tropical_monsoon" },
+  { n:"Dera Ismail Khan", c:"Pakistan", lat:31.83, lon:70.9, v:0.12, p:0.763, pr:"middle_east", cl:"desert_cold" },
+  { n:"Wuzhou", c:"Chine", lat:23.48, lon:111.29, v:0.12, p:0.762, pr:"japan", cl:"subtropical" },
+  { n:"Ipoh", c:"Malaisie", lat:4.58, lon:101.08, v:0.17, p:0.76, pr:"tropical_wet", cl:"tropical_rain" },
+  { n:"Qinhuangdao", c:"Chine", lat:39.94, lon:119.59, v:0.12, p:0.76, pr:"japan", cl:"subtropical" },
+  { n:"Benghazi", c:"Libye", lat:32.11, lon:20.07, v:0.17, p:0.757, pr:"med_beach", cl:"mediterranean" },
+  { n:"Kraków", c:"Pologne", lat:50.06, lon:19.94, v:0.12, p:0.755, pr:"euro_city", cl:"continental_warm" },
+  { n:"Alīgarh", c:"Inde", lat:27.88, lon:78.07, v:0.12, p:0.753, pr:"tropical_dry", cl:"tropical_monsoon" },
+  { n:"Shaoyang", c:"Chine", lat:27.24, lon:111.46, v:0.12, p:0.753, pr:"japan", cl:"subtropical" },
+  { n:"Winnipeg", c:"Canada", lat:49.88, lon:-97.15, v:0.12, p:0.75, pr:"euro_city", cl:"continental_warm" },
+  { n:"Bağcılar", c:"Turquie", lat:41.04, lon:28.86, v:0.22, p:0.749, pr:"med_beach", cl:"mediterranean" },
+  { n:"Ōta", c:"Japon", lat:35.56, lon:139.72, v:0.16, p:0.748, pr:"japan", cl:"subtropical" },
+  { n:"Andijon", c:"Ouzbékistan", lat:40.78, lon:72.35, v:0.12, p:0.748, pr:"euro_city", cl:"continental_warm" },
+  { n:"Bareilly", c:"Inde", lat:28.37, lon:79.43, v:0.17, p:0.745, pr:"tropical_dry", cl:"tropical_savanna" },
+  { n:"Buraydah", c:"Arabie saoudite", lat:26.33, lon:43.97, v:0.12, p:0.745, pr:"middle_east", cl:"desert_hot" },
+  { n:"São Bernardo do Campo", c:"Brésil", lat:-23.69, lon:-46.56, v:0.12, p:0.743, pr:"south_hemi", cl:"sh_subtropical" },
+  { n:"Hegang", c:"Chine", lat:47.35, lon:130.29, v:0.12, p:0.743, pr:"euro_city", cl:"continental_warm" },
+  { n:"Morelia", c:"Mexique", lat:19.7, lon:-101.18, v:0.12, p:0.743, pr:"middle_east", cl:"desert_hot" },
+  { n:"Tasikmalaya", c:"Indonésie", lat:-7.33, lon:108.22, v:0.17, p:0.742, pr:"tropical_wet", cl:"tropical_rain" },
+  { n:"Ma’anshan", c:"Chine", lat:31.69, lon:118.51, v:0.12, p:0.742, pr:"japan", cl:"subtropical" },
+  { n:"Shizuishan", c:"Chine", lat:38.98, lon:106.39, v:0.12, p:0.739, pr:"japan", cl:"subtropical" },
+  { n:"Kumamoto", c:"Japon", lat:32.81, lon:130.69, v:0.16, p:0.739, pr:"japan", cl:"subtropical" },
+  { n:"Oyo", c:"Nigeria", lat:7.85, lon:3.93, v:0.17, p:0.736, pr:"tropical_wet", cl:"tropical_rain" },
+  { n:"Torreón", c:"Mexique", lat:25.54, lon:-103.42, v:0.12, p:0.735, pr:"middle_east", cl:"desert_hot" },
+  { n:"Deyang", c:"Chine", lat:31.13, lon:104.38, v:0.12, p:0.735, pr:"japan", cl:"subtropical" },
+  { n:"Abeokuta", c:"Nigeria", lat:7.16, lon:3.35, v:0.17, p:0.735, pr:"tropical_wet", cl:"tropical_rain" },
+  { n:"Al Ḩudaydah", c:"Yémen", lat:14.8, lon:42.95, v:0.17, p:0.735, pr:"tropical_dry", cl:"tropical_savanna" },
+  { n:"Yangquan", c:"Chine", lat:37.86, lon:113.56, v:0.12, p:0.731, pr:"japan", cl:"subtropical" },
+  { n:"Akure", c:"Nigeria", lat:7.25, lon:5.19, v:0.17, p:0.73, pr:"tropical_wet", cl:"tropical_rain" },
+  { n:"São José dos Campos", c:"Brésil", lat:-23.18, lon:-45.89, v:0.12, p:0.73, pr:"south_hemi", cl:"sh_subtropical" },
+  { n:"Denver", c:"États-Unis", lat:39.74, lon:-104.98, v:0.16, p:0.729, pr:"us_city", cl:"continental_warm" },
+  { n:"Osasco", c:"Brésil", lat:-23.53, lon:-46.79, v:0.12, p:0.729, pr:"south_hemi", cl:"sh_subtropical" },
+  { n:"Cagayan de Oro", c:"Philippines", lat:8.48, lon:124.65, v:0.17, p:0.728, pr:"tropical_wet", cl:"tropical_rain" },
+  { n:"Álvaro Obregón", c:"Mexique", lat:19.36, lon:-99.2, v:0.17, p:0.727, pr:"tropical_dry", cl:"tropical_savanna" },
+  { n:"Aihara", c:"Japon", lat:35.6, lon:139.32, v:0.16, p:0.725, pr:"japan", cl:"subtropical" },
+  { n:"Evaton", c:"Afrique du Sud", lat:-26.53, lon:27.85, v:0.12, p:0.725, pr:"south_hemi", cl:"sh_subtropical" },
+  { n:"Denpasar", c:"Indonésie", lat:-8.65, lon:115.22, v:0.17, p:0.725, pr:"tropical_wet", cl:"tropical_rain" },
+  { n:"Muzaffarābād", c:"Pakistan", lat:34.37, lon:73.47, v:0.12, p:0.725, pr:"middle_east", cl:"desert_cold" },
+  { n:"Okayama", c:"Japon", lat:34.65, lon:133.93, v:0.16, p:0.725, pr:"japan", cl:"subtropical" },
+  { n:"San Luis Potosí", c:"Mexique", lat:22.15, lon:-100.97, v:0.12, p:0.723, pr:"middle_east", cl:"desert_hot" },
+  { n:"Aguascalientes", c:"Mexique", lat:21.88, lon:-102.28, v:0.12, p:0.722, pr:"middle_east", cl:"desert_hot" },
+  { n:"Zhumadian", c:"Chine", lat:32.98, lon:114.03, v:0.12, p:0.722, pr:"japan", cl:"subtropical" },
+  { n:"Morādābād", c:"Inde", lat:28.84, lon:78.78, v:0.17, p:0.721, pr:"tropical_dry", cl:"tropical_savanna" },
+  { n:"Sagamihara", c:"Japon", lat:35.57, lon:139.24, v:0.16, p:0.721, pr:"japan", cl:"subtropical" },
+  { n:"Mississauga", c:"Canada", lat:43.58, lon:-79.66, v:0.12, p:0.718, pr:"euro_city", cl:"continental_warm" },
+  { n:"Lviv", c:"Ukraine", lat:49.84, lon:24.02, v:0.12, p:0.717, pr:"euro_city", cl:"continental_warm" },
+  { n:"Valenzuela", c:"Philippines", lat:14.7, lon:120.97, v:0.17, p:0.715, pr:"tropical_dry", cl:"tropical_savanna" },
+  { n:"Namangan", c:"Ouzbékistan", lat:41.0, lon:71.67, v:0.12, p:0.713, pr:"euro_city", cl:"continental_warm" },
+  { n:"Ribeirão Preto", c:"Brésil", lat:-21.18, lon:-47.81, v:0.17, p:0.712, pr:"tropical_dry", cl:"tropical_savanna" },
+  { n:"Zaporizhzhya", c:"Ukraine", lat:47.85, lon:35.12, v:0.12, p:0.71, pr:"euro_city", cl:"continental_warm" },
+  { n:"Zanzibar", c:"Tanzanie", lat:-6.16, lon:39.2, v:0.17, p:0.71, pr:"tropical_wet", cl:"tropical_rain" },
+  { n:"Saltillo", c:"Mexique", lat:25.43, lon:-100.98, v:0.12, p:0.71, pr:"middle_east", cl:"desert_hot" },
+  { n:"Latakia", c:"Syrie", lat:35.53, lon:35.79, v:0.17, p:0.709, pr:"med_beach", cl:"mediterranean" },
+  { n:"Subang Jaya", c:"Malaisie", lat:3.04, lon:101.58, v:0.16, p:0.708, pr:"tropical_wet", cl:"tropical_rain" },
+  { n:"Warangal", c:"Inde", lat:18.0, lon:79.58, v:0.12, p:0.705, pr:"tropical_dry", cl:"tropical_monsoon" },
+  { n:"Tolyatti", c:"Russie", lat:53.53, lon:49.35, v:0.12, p:0.703, pr:"euro_city", cl:"continental_warm" },
+  { n:"Jaboatão", c:"Brésil", lat:-8.18, lon:-35.0, v:0.16, p:0.703, pr:"tropical_wet", cl:"tropical_rain" },
+  { n:"Santo Domingo Oeste", c:"Rép. dominicaine", lat:18.5, lon:-70.0, v:0.16, p:0.701, pr:"tropical_dry", cl:"tropical_savanna" },
+  { n:"Santo Domingo Este", c:"Rép. dominicaine", lat:18.49, lon:-69.85, v:0.16, p:0.7, pr:"tropical_dry", cl:"tropical_savanna" },
+  { n:"Battagram", c:"Pakistan", lat:34.68, lon:73.02, v:0.12, p:0.7, pr:"middle_east", cl:"desert_cold" },
+  { n:"Suez", c:"Égypte", lat:29.97, lon:32.53, v:0.12, p:0.7, pr:"middle_east", cl:"desert_hot" },
+  { n:"Agadir", c:"Maroc", lat:30.42, lon:-9.6, v:0.16, p:0.698, pr:"med_beach", cl:"mediterranean" },
+  { n:"Edogawe", c:"Japon", lat:35.69, lon:139.87, v:0.15, p:0.698, pr:"japan", cl:"subtropical" },
+  { n:"General Santos", c:"Philippines", lat:6.11, lon:125.17, v:0.16, p:0.697, pr:"tropical_wet", cl:"tropical_rain" },
+  { n:"Balikpapan", c:"Indonésie", lat:-1.27, lon:116.83, v:0.16, p:0.695, pr:"tropical_wet", cl:"tropical_rain" },
+  { n:"Adachi", c:"Japon", lat:35.76, lon:139.81, v:0.15, p:0.695, pr:"japan", cl:"subtropical" },
+  { n:"Bauchi", c:"Nigeria", lat:10.31, lon:9.84, v:0.16, p:0.694, pr:"tropical_dry", cl:"tropical_savanna" },
+  { n:"Shizuoka", c:"Japon", lat:34.98, lon:138.38, v:0.15, p:0.693, pr:"japan", cl:"subtropical" },
+  { n:"Zhangjiakou", c:"Chine", lat:40.78, lon:114.87, v:0.12, p:0.693, pr:"euro_city", cl:"continental_warm" },
+  { n:"Serang", c:"Indonésie", lat:-6.12, lon:106.15, v:0.16, p:0.692, pr:"tropical_wet", cl:"tropical_rain" },
+  { n:"Paranaque City", c:"Philippines", lat:14.48, lon:121.02, v:0.16, p:0.69, pr:"tropical_dry", cl:"tropical_savanna" },
+  { n:"Nashville", c:"États-Unis", lat:36.17, lon:-86.78, v:0.15, p:0.689, pr:"us_city", cl:"subtropical" },
+  { n:"Fuxin", c:"Chine", lat:42.02, lon:121.66, v:0.12, p:0.689, pr:"euro_city", cl:"continental_warm" },
+  { n:"Ta’if", c:"Arabie saoudite", lat:21.27, lon:40.42, v:0.12, p:0.689, pr:"middle_east", cl:"desert_hot" },
+  { n:"Huangshi", c:"Chine", lat:30.25, lon:115.05, v:0.12, p:0.688, pr:"japan", cl:"subtropical" },
+  { n:"Liaoyang", c:"Chine", lat:41.27, lon:123.17, v:0.12, p:0.688, pr:"euro_city", cl:"continental_warm" },
+  { n:"Beira", c:"Mozambique", lat:-19.84, lon:34.84, v:0.16, p:0.688, pr:"tropical_dry", cl:"tropical_savanna" },
+  { n:"Sevilla", c:"Espagne", lat:37.38, lon:-5.97, v:0.21, p:0.687, pr:"med_beach", cl:"mediterranean" },
+  { n:"Sorocaba", c:"Brésil", lat:-23.5, lon:-47.46, v:0.12, p:0.687, pr:"south_hemi", cl:"sh_subtropical" },
+  { n:"Zaragoza", c:"Espagne", lat:41.66, lon:-0.88, v:0.21, p:0.687, pr:"med_beach", cl:"mediterranean" },
+  { n:"Baise", c:"Chine", lat:23.89, lon:106.63, v:0.12, p:0.686, pr:"japan", cl:"subtropical" },
+  { n:"Situbondo", c:"Indonésie", lat:-7.71, lon:114.01, v:0.16, p:0.686, pr:"tropical_wet", cl:"tropical_rain" },
+  { n:"Binzhou", c:"Chine", lat:37.37, lon:118.02, v:0.11, p:0.683, pr:"japan", cl:"subtropical" },
+  { n:"Oklahoma City", c:"États-Unis", lat:35.47, lon:-97.52, v:0.15, p:0.681, pr:"us_city", cl:"subtropical" },
+  { n:"Yuncheng", c:"Chine", lat:35.02, lon:110.99, v:0.11, p:0.68, pr:"japan", cl:"subtropical" },
+  { n:"Dezhou", c:"Chine", lat:37.45, lon:116.37, v:0.11, p:0.68, pr:"japan", cl:"subtropical" },
+  { n:"El Paso", c:"États-Unis", lat:31.76, lon:-106.49, v:0.15, p:0.679, pr:"us_city", cl:"desert_hot" },
+  { n:"Acapulco de Juárez", c:"Mexique", lat:16.85, lon:-99.91, v:0.16, p:0.673, pr:"tropical_dry", cl:"tropical_savanna" },
+  { n:"Guntur", c:"Inde", lat:16.3, lon:80.46, v:0.11, p:0.67, pr:"tropical_dry", cl:"tropical_monsoon" },
+  { n:"Katsina", c:"Nigeria", lat:12.99, lon:7.6, v:0.16, p:0.67, pr:"tropical_dry", cl:"tropical_savanna" },
+  { n:"Sanmenxia", c:"Chine", lat:34.78, lon:111.19, v:0.11, p:0.669, pr:"japan", cl:"subtropical" },
+  { n:"E’zhou", c:"Chine", lat:30.4, lon:114.89, v:0.11, p:0.669, pr:"japan", cl:"subtropical" },
+  { n:"Tabuk", c:"Arabie saoudite", lat:28.4, lon:36.57, v:0.11, p:0.667, pr:"middle_east", cl:"desert_hot" },
+  { n:"Kitwe", c:"Zambie", lat:-12.8, lon:28.21, v:0.16, p:0.666, pr:"tropical_dry", cl:"tropical_savanna" },
+  { n:"Bulawayo", c:"Zimbabwe", lat:-20.15, lon:28.58, v:0.16, p:0.666, pr:"tropical_dry", cl:"tropical_savanna" },
+  { n:"Mudanjiang", c:"Chine", lat:44.55, lon:129.63, v:0.11, p:0.666, pr:"euro_city", cl:"continental_warm" },
+  { n:"Aracaju", c:"Brésil", lat:-10.91, lon:-37.07, v:0.16, p:0.665, pr:"tropical_dry", cl:"tropical_savanna" },
+  { n:"Leshan", c:"Chine", lat:29.56, lon:103.76, v:0.11, p:0.663, pr:"japan", cl:"subtropical" },
+  { n:"Santo André", c:"Brésil", lat:-23.66, lon:-46.54, v:0.11, p:0.662, pr:"south_hemi", cl:"sh_subtropical" },
+  { n:"Vancouver", c:"Canada", lat:49.25, lon:-123.12, v:0.11, p:0.662, pr:"euro_city", cl:"continental_warm" },
+  { n:"Rizhao", c:"Chine", lat:35.41, lon:119.53, v:0.11, p:0.662, pr:"japan", cl:"subtropical" },
+  { n:"Cheonan", c:"Corée du Sud", lat:36.81, lon:127.15, v:0.11, p:0.659, pr:"japan", cl:"subtropical" },
+  { n:"Pontianak", c:"Indonésie", lat:-0.03, lon:109.33, v:0.16, p:0.659, pr:"tropical_wet", cl:"tropical_rain" },
+  { n:"Banjarmasin", c:"Indonésie", lat:-3.32, lon:114.59, v:0.16, p:0.658, pr:"tropical_wet", cl:"tropical_rain" },
+  { n:"Puducherry", c:"Inde", lat:11.93, lon:79.83, v:0.11, p:0.657, pr:"tropical_dry", cl:"tropical_monsoon" },
+  { n:"Suining", c:"Chine", lat:30.51, lon:105.57, v:0.11, p:0.657, pr:"japan", cl:"subtropical" },
+  { n:"Brampton", c:"Canada", lat:43.68, lon:-79.77, v:0.11, p:0.656, pr:"euro_city", cl:"continental_warm" },
+  { n:"Boston", c:"États-Unis", lat:42.36, lon:-71.06, v:0.14, p:0.654, pr:"us_city", cl:"continental_warm" },
+  { n:"Portland", c:"États-Unis", lat:45.52, lon:-122.68, v:0.14, p:0.653, pr:"us_city", cl:"continental_warm" },
+  { n:"Tlaquepaque", c:"Mexique", lat:20.64, lon:-103.29, v:0.11, p:0.65, pr:"middle_east", cl:"desert_hot" },
+  { n:"Frankfurt am Main", c:"Allemagne", lat:50.12, lon:8.68, v:0.14, p:0.65, pr:"euro_city", cl:"oceanic" },
+  { n:"Palermo", c:"Italie", lat:38.12, lon:13.36, v:0.2, p:0.648, pr:"med_beach", cl:"mediterranean" },
+  { n:"Izhevsk", c:"Russie", lat:56.85, lon:53.2, v:0.11, p:0.648, pr:"euro_city", cl:"continental_warm" },
+  { n:"Maturín", c:"Venezuela", lat:9.75, lon:-63.18, v:0.15, p:0.647, pr:"tropical_dry", cl:"tropical_savanna" },
+  { n:"Amravati", c:"Inde", lat:20.93, lon:77.75, v:0.11, p:0.647, pr:"tropical_dry", cl:"tropical_monsoon" },
+  { n:"Detroit", c:"États-Unis", lat:42.33, lon:-83.05, v:0.14, p:0.646, pr:"us_city", cl:"continental_warm" },
+  { n:"Osogbo", c:"Nigeria", lat:7.77, lon:4.56, v:0.15, p:0.645, pr:"tropical_wet", cl:"tropical_rain" },
+  { n:"Honchō", c:"Japon", lat:35.7, lon:139.99, v:0.14, p:0.645, pr:"japan", cl:"subtropical" },
+  { n:"Taguig", c:"Philippines", lat:14.52, lon:121.08, v:0.15, p:0.644, pr:"tropical_dry", cl:"tropical_savanna" },
+  { n:"Bikaner", c:"Inde", lat:28.02, lon:73.31, v:0.15, p:0.644, pr:"tropical_dry", cl:"tropical_savanna" },
+  { n:"Jaboatão dos Guararapes", c:"Brésil", lat:-8.11, lon:-35.01, v:0.15, p:0.644, pr:"tropical_wet", cl:"tropical_rain" },
+  { n:"New South Memphis", c:"États-Unis", lat:35.09, lon:-90.06, v:0.14, p:0.642, pr:"us_city", cl:"subtropical" },
+  { n:"Hwaseong-si", c:"Corée du Sud", lat:37.21, lon:126.82, v:0.11, p:0.641, pr:"japan", cl:"subtropical" },
+  { n:"Gold Coast", c:"Australie", lat:-28.0, lon:153.43, v:0.11, p:0.641, pr:"south_hemi", cl:"sh_subtropical" },
+  { n:"Kotli", c:"Pakistan", lat:33.52, lon:73.9, v:0.11, p:0.64, pr:"middle_east", cl:"desert_cold" },
+  { n:"Jeonju", c:"Corée du Sud", lat:35.82, lon:127.15, v:0.11, p:0.638, pr:"japan", cl:"subtropical" },
+  { n:"Al Aḩmadī", c:"Koweït", lat:29.08, lon:48.08, v:0.11, p:0.637, pr:"middle_east", cl:"desert_hot" },
+  { n:"Cuenca", c:"Équateur", lat:-2.9, lon:-79.0, v:0.15, p:0.637, pr:"tropical_wet", cl:"tropical_rain" },
+  { n:"Likasi", c:"RD Congo", lat:-10.98, lon:26.74, v:0.15, p:0.636, pr:"tropical_dry", cl:"tropical_savanna" },
+  { n:"Wrocław", c:"Pologne", lat:51.1, lon:17.03, v:0.11, p:0.635, pr:"euro_city", cl:"continental_warm" },
+  { n:"Hebi", c:"Chine", lat:35.73, lon:114.29, v:0.11, p:0.635, pr:"japan", cl:"subtropical" },
+  { n:"Tshikapa", c:"RD Congo", lat:-6.42, lon:20.8, v:0.15, p:0.635, pr:"tropical_wet", cl:"tropical_rain" },
+  { n:"Kochi", c:"Inde", lat:9.94, lon:76.26, v:0.11, p:0.634, pr:"tropical_dry", cl:"tropical_monsoon" },
+  { n:"Memphis", c:"États-Unis", lat:35.15, lon:-90.05, v:0.14, p:0.633, pr:"us_city", cl:"subtropical" },
+  { n:"Jingmen", c:"Chine", lat:31.03, lon:112.2, v:0.11, p:0.633, pr:"japan", cl:"subtropical" },
+  { n:"Barnaul", c:"Russie", lat:53.36, lon:83.75, v:0.11, p:0.632, pr:"euro_city", cl:"continental_warm" },
+  { n:"Dandong", c:"Chine", lat:40.13, lon:124.39, v:0.11, p:0.632, pr:"euro_city", cl:"continental_warm" },
+  { n:"Stuttgart", c:"Allemagne", lat:48.78, lon:9.18, v:0.14, p:0.63, pr:"euro_city", cl:"oceanic" },
+  { n:"Bhilai", c:"Inde", lat:21.21, lon:81.43, v:0.11, p:0.628, pr:"tropical_dry", cl:"tropical_monsoon" },
+  { n:"Ndola", c:"Zambie", lat:-12.96, lon:28.64, v:0.15, p:0.628, pr:"tropical_dry", cl:"tropical_savanna" },
+  { n:"Contagem", c:"Brésil", lat:-19.93, lon:-44.05, v:0.15, p:0.627, pr:"tropical_dry", cl:"tropical_savanna" },
+  { n:"Ulyanovsk", c:"Russie", lat:54.33, lon:48.39, v:0.11, p:0.627, pr:"euro_city", cl:"continental_warm" },
+  { n:"Glasgow", c:"Royaume-Uni", lat:55.87, lon:-4.26, v:0.14, p:0.626, pr:"euro_city", cl:"oceanic" },
+  { n:"Panshan", c:"Chine", lat:41.19, lon:122.05, v:0.11, p:0.625, pr:"euro_city", cl:"continental_warm" },
+  { n:"Louisville", c:"États-Unis", lat:38.25, lon:-85.76, v:0.14, p:0.624, pr:"us_city", cl:"subtropical" },
+  { n:"Irkutsk", c:"Russie", lat:52.3, lon:104.3, v:0.11, p:0.624, pr:"euro_city", cl:"continental_warm" },
+  { n:"Ansan-si", c:"Corée du Sud", lat:37.32, lon:126.82, v:0.11, p:0.623, pr:"japan", cl:"subtropical" },
+  { n:"Al Mansurah", c:"Égypte", lat:31.04, lon:31.38, v:0.15, p:0.622, pr:"med_beach", cl:"mediterranean" },
+  { n:"Kermanshah", c:"Iran", lat:34.31, lon:47.06, v:0.11, p:0.621, pr:"middle_east", cl:"desert_hot" },
+  { n:"Düsseldorf", c:"Allemagne", lat:51.22, lon:6.78, v:0.14, p:0.621, pr:"euro_city", cl:"oceanic" },
+  { n:"Coyoacán", c:"Mexique", lat:19.35, lon:-99.16, v:0.15, p:0.62, pr:"tropical_dry", cl:"tropical_savanna" },
+  { n:"Feira de Santana", c:"Brésil", lat:-12.27, lon:-38.97, v:0.15, p:0.62, pr:"tropical_dry", cl:"tropical_savanna" },
+  { n:"Jiaozhou", c:"Chine", lat:36.28, lon:120.0, v:0.11, p:0.619, pr:"japan", cl:"subtropical" },
+  { n:"Suizhou", c:"Chine", lat:31.71, lon:113.36, v:0.11, p:0.619, pr:"japan", cl:"subtropical" },
+  { n:"Villa Nueva", c:"Guatemala", lat:14.53, lon:-90.59, v:0.15, p:0.618, pr:"tropical_dry", cl:"tropical_savanna" },
+  { n:"Khabarovsk", c:"Russie", lat:48.48, lon:135.09, v:0.11, p:0.618, pr:"euro_city", cl:"continental_warm" },
+  { n:"Cuiabá", c:"Brésil", lat:-15.6, lon:-56.1, v:0.15, p:0.618, pr:"tropical_dry", cl:"tropical_savanna" },
+  { n:"Arusha", c:"Tanzanie", lat:-3.37, lon:36.68, v:0.15, p:0.618, pr:"tropical_wet", cl:"tropical_rain" },
+  { n:"Chizhou", c:"Chine", lat:30.66, lon:117.48, v:0.11, p:0.615, pr:"japan", cl:"subtropical" },
+  { n:"Ya'an", c:"Chine", lat:29.99, lon:103.0, v:0.11, p:0.612, pr:"japan", cl:"subtropical" },
+  { n:"Cuttack", c:"Inde", lat:20.46, lon:85.88, v:0.11, p:0.61, pr:"tropical_dry", cl:"tropical_monsoon" },
+  { n:"Borivli", c:"Inde", lat:19.23, lon:72.86, v:0.11, p:0.61, pr:"tropical_dry", cl:"tropical_monsoon" },
+  { n:"Yaroslavl", c:"Russie", lat:57.63, lon:39.87, v:0.11, p:0.609, pr:"euro_city", cl:"continental_warm" },
+  { n:"Göteborg", c:"Suède", lat:57.71, lon:11.97, v:0.11, p:0.608, pr:"euro_city", cl:"oceanic" },
+  { n:"Kawaguchi", c:"Japon", lat:35.81, lon:139.71, v:0.14, p:0.607, pr:"japan", cl:"subtropical" },
+  { n:"Bukit Rahman Putra", c:"Malaisie", lat:3.22, lon:101.56, v:0.15, p:0.607, pr:"tropical_wet", cl:"tropical_rain" },
+  { n:"Jambi City", c:"Indonésie", lat:-1.6, lon:103.62, v:0.15, p:0.606, pr:"tropical_wet", cl:"tropical_rain" },
+  { n:"Ha'il", c:"Arabie saoudite", lat:27.52, lon:41.69, v:0.11, p:0.606, pr:"middle_east", cl:"desert_hot" },
+  { n:"Bhavnagar", c:"Inde", lat:21.76, lon:72.15, v:0.11, p:0.606, pr:"tropical_dry", cl:"tropical_monsoon" },
+  { n:"Benoni", c:"Afrique du Sud", lat:-26.19, lon:28.32, v:0.11, p:0.605, pr:"south_hemi", cl:"sh_subtropical" },
+  { n:"Vladivostok", c:"Russie", lat:43.11, lon:131.87, v:0.11, p:0.605, pr:"euro_city", cl:"continental_warm" },
+  { n:"Jinzhou", c:"Chine", lat:41.11, lon:121.14, v:0.11, p:0.604, pr:"euro_city", cl:"continental_warm" },
+  { n:"Tuxtla", c:"Mexique", lat:16.75, lon:-93.12, v:0.15, p:0.604, pr:"tropical_dry", cl:"tropical_savanna" },
+  { n:"Kryvyy Rih", c:"Ukraine", lat:47.91, lon:33.39, v:0.11, p:0.604, pr:"euro_city", cl:"continental_warm" },
+  { n:"Sanming", c:"Chine", lat:26.25, lon:117.62, v:0.11, p:0.602, pr:"japan", cl:"subtropical" },
+  { n:"Sāngli", c:"Inde", lat:16.85, lon:74.56, v:0.11, p:0.601, pr:"tropical_dry", cl:"tropical_monsoon" },
+  { n:"Jamnagar", c:"Inde", lat:22.47, lon:70.07, v:0.11, p:0.601, pr:"tropical_dry", cl:"tropical_monsoon" },
+  { n:"Lubango", c:"Angola", lat:-14.92, lon:13.49, v:0.15, p:0.601, pr:"tropical_dry", cl:"tropical_savanna" },
+  { n:"Shuangyashan", c:"Chine", lat:46.68, lon:131.13, v:0.1, p:0.6, pr:"euro_city", cl:"continental_warm" },
+  { n:"Pokhara", c:"Népal", lat:28.27, lon:83.97, v:0.15, p:0.6, pr:"tropical_dry", cl:"tropical_savanna" },
+  { n:"Rotterdam", c:"Pays-Bas", lat:51.92, lon:4.48, v:0.1, p:0.598, pr:"euro_city", cl:"oceanic" },
+  { n:"Borama", c:"Somalie", lat:9.94, lon:43.18, v:0.15, p:0.598, pr:"tropical_wet", cl:"tropical_rain" },
+  { n:"Luancheng", c:"Chine", lat:37.88, lon:114.65, v:0.1, p:0.597, pr:"japan", cl:"subtropical" },
+  { n:"Makhachkala", c:"Russie", lat:42.98, lon:47.5, v:0.1, p:0.596, pr:"euro_city", cl:"continental_warm" },
+  { n:"Anyang-si", c:"Corée du Sud", lat:37.39, lon:126.93, v:0.1, p:0.596, pr:"japan", cl:"subtropical" },
+  { n:"Huambo", c:"Angola", lat:-12.78, lon:15.74, v:0.15, p:0.595, pr:"tropical_dry", cl:"tropical_savanna" },
+  { n:"Samarkand", c:"Ouzbékistan", lat:39.65, lon:66.96, v:0.1, p:0.595, pr:"euro_city", cl:"continental_warm" },
+  { n:"Mengzi", c:"Chine", lat:23.37, lon:103.38, v:0.1, p:0.595, pr:"japan", cl:"subtropical" },
+  { n:"Kagoshima", c:"Japon", lat:31.57, lon:130.55, v:0.14, p:0.595, pr:"japan", cl:"subtropical" },
+  { n:"Mukalla", c:"Yémen", lat:14.54, lon:49.12, v:0.15, p:0.595, pr:"tropical_dry", cl:"tropical_savanna" },
+  { n:"Rasht", c:"Iran", lat:37.28, lon:49.59, v:0.1, p:0.595, pr:"euro_city", cl:"continental_warm" },
+  { n:"Mar del Plata", c:"Argentine", lat:-38.0, lon:-57.56, v:0.1, p:0.593, pr:"south_hemi", cl:"sh_temperate" },
+  { n:"Essen", c:"Allemagne", lat:51.46, lon:7.01, v:0.14, p:0.593, pr:"euro_city", cl:"oceanic" },
+  { n:"Al Maḩallah al Kubrá", c:"Égypte", lat:30.97, lon:31.17, v:0.15, p:0.593, pr:"med_beach", cl:"mediterranean" },
+  { n:"Málaga", c:"Espagne", lat:36.72, lon:-4.42, v:0.19, p:0.592, pr:"med_beach", cl:"mediterranean" },
+  { n:"Shekhupura", c:"Pakistan", lat:31.71, lon:73.99, v:0.1, p:0.591, pr:"middle_east", cl:"desert_cold" },
+  { n:"Yingkou", c:"Chine", lat:40.66, lon:122.23, v:0.1, p:0.591, pr:"euro_city", cl:"continental_warm" },
+  { n:"Cimahi", c:"Indonésie", lat:-6.87, lon:107.54, v:0.15, p:0.591, pr:"tropical_wet", cl:"tropical_rain" },
+  { n:"Zhangzhou", c:"Chine", lat:24.51, lon:117.66, v:0.1, p:0.59, pr:"japan", cl:"subtropical" },
+  { n:"Reynosa", c:"Mexique", lat:26.08, lon:-98.28, v:0.1, p:0.589, pr:"us_city", cl:"subtropical" },
+  { n:"Thuận An", c:"Vietnam", lat:10.92, lon:106.71, v:0.14, p:0.589, pr:"tropical_wet", cl:"tropical_rain" },
+  { n:"Dortmund", c:"Allemagne", lat:51.51, lon:7.47, v:0.13, p:0.588, pr:"euro_city", cl:"oceanic" },
+  { n:"Suginami", c:"Japon", lat:36.2, lon:140.28, v:0.13, p:0.588, pr:"japan", cl:"subtropical" },
+  { n:"Londrina", c:"Brésil", lat:-23.31, lon:-51.16, v:0.1, p:0.588, pr:"south_hemi", cl:"sh_subtropical" },
+  { n:"Baltimore", c:"États-Unis", lat:39.29, lon:-76.61, v:0.13, p:0.586, pr:"us_city", cl:"subtropical" },
+  { n:"Bucaramanga", c:"Colombie", lat:7.12, lon:-73.12, v:0.14, p:0.581, pr:"tropical_wet", cl:"tropical_rain" },
+  { n:"Genoa", c:"Italie", lat:44.4, lon:8.94, v:0.19, p:0.58, pr:"med_beach", cl:"mediterranean" },
+  { n:"Hachiōji", c:"Japon", lat:35.66, lon:139.32, v:0.13, p:0.579, pr:"japan", cl:"subtropical" },
+  { n:"Malacca", c:"Malaisie", lat:2.2, lon:102.24, v:0.14, p:0.579, pr:"tropical_wet", cl:"tropical_rain" },
+  { n:"Nha Trang", c:"Vietnam", lat:12.25, lon:109.19, v:0.14, p:0.579, pr:"tropical_dry", cl:"tropical_savanna" },
+  { n:"Khabarovsk Vtoroy", c:"Russie", lat:48.44, lon:135.13, v:0.1, p:0.578, pr:"euro_city", cl:"continental_warm" },
+  { n:"Kerman", c:"Iran", lat:30.28, lon:57.08, v:0.1, p:0.578, pr:"middle_east", cl:"desert_cold" },
+  { n:"Orūmīyeh", c:"Iran", lat:37.55, lon:45.08, v:0.1, p:0.577, pr:"euro_city", cl:"continental_warm" },
+  { n:"Tanta", c:"Égypte", lat:30.79, lon:31.0, v:0.14, p:0.577, pr:"med_beach", cl:"mediterranean" },
+  { n:"Jammu", c:"Inde", lat:32.74, lon:74.86, v:0.1, p:0.576, pr:"middle_east", cl:"desert_cold" },
+  { n:"Iskandar Puteri", c:"Malaisie", lat:1.39, lon:103.62, v:0.14, p:0.576, pr:"tropical_wet", cl:"tropical_rain" },
+  { n:"Herāt", c:"Afghanistan", lat:34.35, lon:62.2, v:0.1, p:0.574, pr:"middle_east", cl:"desert_cold" },
+  { n:"Gujrat", c:"Pakistan", lat:32.57, lon:74.08, v:0.1, p:0.574, pr:"middle_east", cl:"desert_cold" },
+  { n:"Tomsk", c:"Russie", lat:56.5, lon:84.98, v:0.14, p:0.574, pr:"tropical_dry", cl:"tropical_savanna" },
+  { n:"Juiz de Fora", c:"Brésil", lat:-21.76, lon:-43.35, v:0.14, p:0.573, pr:"tropical_dry", cl:"tropical_savanna" },
+  { n:"Umraniye", c:"Turquie", lat:41.02, lon:29.12, v:0.18, p:0.573, pr:"med_beach", cl:"mediterranean" },
+  { n:"Shihezi", c:"Chine", lat:44.3, lon:86.04, v:0.1, p:0.573, pr:"euro_city", cl:"continental_warm" },
+  { n:"South Boston", c:"États-Unis", lat:42.33, lon:-71.05, v:0.13, p:0.571, pr:"us_city", cl:"continental_warm" },
+  { n:"Nakuru", c:"Kenya", lat:-0.31, lon:36.07, v:0.14, p:0.571, pr:"tropical_wet", cl:"tropical_rain" },
+  { n:"Poznań", c:"Pologne", lat:52.41, lon:16.93, v:0.1, p:0.57, pr:"euro_city", cl:"continental_warm" },
+  { n:"Hamilton", c:"Canada", lat:43.25, lon:-79.85, v:0.1, p:0.569, pr:"euro_city", cl:"continental_warm" },
+  { n:"Irbid", c:"Jordanie", lat:32.56, lon:35.85, v:0.14, p:0.569, pr:"med_beach", cl:"mediterranean" },
+  { n:"Manchester", c:"Royaume-Uni", lat:53.48, lon:-2.24, v:0.13, p:0.569, pr:"euro_city", cl:"oceanic" },
+  { n:"Kota Bharu", c:"Malaisie", lat:6.12, lon:102.24, v:0.14, p:0.569, pr:"tropical_wet", cl:"tropical_rain" },
+  { n:"Surrey", c:"Canada", lat:49.11, lon:-122.83, v:0.1, p:0.568, pr:"euro_city", cl:"continental_warm" },
+  { n:"Meknes", c:"Maroc", lat:33.89, lon:-5.55, v:0.14, p:0.568, pr:"med_beach", cl:"mediterranean" },
+  { n:"Puente Alto", c:"Chili", lat:-33.61, lon:-70.58, v:0.1, p:0.568, pr:"south_hemi", cl:"sh_subtropical" },
+  { n:"Nyala", c:"Soudan", lat:12.05, lon:24.88, v:0.14, p:0.566, pr:"tropical_dry", cl:"tropical_savanna" },
+  { n:"Orenburg", c:"Russie", lat:51.77, lon:55.1, v:0.1, p:0.565, pr:"euro_city", cl:"continental_warm" },
+  { n:"Albuquerque", c:"États-Unis", lat:35.08, lon:-106.65, v:0.13, p:0.565, pr:"us_city", cl:"continental_warm" },
+  { n:"Bokāro", c:"Inde", lat:23.67, lon:86.15, v:0.1, p:0.564, pr:"tropical_dry", cl:"tropical_monsoon" },
+  { n:"Sukkur", c:"Pakistan", lat:27.7, lon:68.86, v:0.1, p:0.564, pr:"tropical_dry", cl:"tropical_monsoon" },
+  { n:"Uberlândia", c:"Brésil", lat:-18.92, lon:-48.28, v:0.14, p:0.564, pr:"tropical_dry", cl:"tropical_savanna" },
+  { n:"Milwaukee", c:"États-Unis", lat:43.04, lon:-87.91, v:0.13, p:0.564, pr:"us_city", cl:"continental_warm" },
+  { n:"Chợ Lớn", c:"Vietnam", lat:10.75, lon:106.65, v:0.14, p:0.561, pr:"tropical_wet", cl:"tropical_rain" },
+  { n:"Wenchang", c:"Chine", lat:19.55, lon:110.8, v:0.14, p:0.561, pr:"tropical_dry", cl:"tropical_savanna" },
+  { n:"Ile-Ife", c:"Nigeria", lat:7.48, lon:4.56, v:0.14, p:0.56, pr:"tropical_wet", cl:"tropical_rain" },
+  { n:"Gombe", c:"Nigeria", lat:10.29, lon:11.17, v:0.14, p:0.56, pr:"tropical_dry", cl:"tropical_savanna" },
+  { n:"Hamhŭng", c:"Corée du Nord", lat:39.92, lon:127.54, v:0.1, p:0.559, pr:"japan", cl:"subtropical" },
+  { n:"Kemerovo", c:"Russie", lat:55.33, lon:86.08, v:0.14, p:0.559, pr:"tropical_dry", cl:"tropical_savanna" },
+  { n:"Nasiriyah", c:"Irak", lat:31.06, lon:46.26, v:0.1, p:0.558, pr:"middle_east", cl:"desert_hot" },
+  { n:"Bloemfontein", c:"Afrique du Sud", lat:-29.12, lon:26.21, v:0.1, p:0.557, pr:"south_hemi", cl:"sh_subtropical" },
+  { n:"Sheffield", c:"Royaume-Uni", lat:53.38, lon:-1.47, v:0.13, p:0.556, pr:"euro_city", cl:"oceanic" },
+  { n:"Dresden", c:"Allemagne", lat:51.05, lon:13.74, v:0.13, p:0.556, pr:"euro_city", cl:"oceanic" },
+  { n:"Santiago de Cuba", c:"Cuba", lat:20.02, lon:-75.82, v:0.14, p:0.556, pr:"tropical_dry", cl:"tropical_savanna" },
+  { n:"Siping", c:"Chine", lat:43.16, lon:124.38, v:0.1, p:0.556, pr:"euro_city", cl:"continental_warm" },
+  { n:"Benguela", c:"Angola", lat:-12.58, lon:13.4, v:0.14, p:0.555, pr:"tropical_dry", cl:"tropical_savanna" },
+  { n:"Chuxiong", c:"Chine", lat:25.04, lon:101.55, v:0.1, p:0.555, pr:"japan", cl:"subtropical" },
+  { n:"Huaihua", c:"Chine", lat:27.56, lon:110.0, v:0.1, p:0.553, pr:"japan", cl:"subtropical" },
+  { n:"Chiclayo", c:"Pérou", lat:-6.77, lon:-79.85, v:0.14, p:0.553, pr:"tropical_wet", cl:"tropical_rain" },
+  { n:"Zahedan", c:"Iran", lat:29.5, lon:60.86, v:0.14, p:0.552, pr:"tropical_dry", cl:"tropical_savanna" },
+  { n:"Banqiao", c:"Taïwan", lat:25.01, lon:121.47, v:0.1, p:0.551, pr:"japan", cl:"subtropical" },
+  { n:"Nanded", c:"Inde", lat:19.16, lon:77.31, v:0.1, p:0.551, pr:"tropical_dry", cl:"tropical_monsoon" },
+  { n:"Kozhikode", c:"Inde", lat:11.25, lon:75.78, v:0.1, p:0.55, pr:"tropical_dry", cl:"tropical_monsoon" },
+  { n:"Ulanqab", c:"Chine", lat:40.99, lon:113.13, v:0.1, p:0.55, pr:"euro_city", cl:"continental_warm" },
+  { n:"Cabinda", c:"Angola", lat:-5.56, lon:12.19, v:0.14, p:0.55, pr:"tropical_wet", cl:"tropical_rain" },
+  { n:"Ajegunle", c:"Nigeria", lat:6.45, lon:3.33, v:0.14, p:0.55, pr:"tropical_wet", cl:"tropical_rain" },
+  { n:"Jiamusi", c:"Chine", lat:46.8, lon:130.31, v:0.1, p:0.55, pr:"euro_city", cl:"continental_warm" },
+  { n:"Korla", c:"Chine", lat:41.76, lon:86.15, v:0.1, p:0.549, pr:"euro_city", cl:"continental_warm" },
+  { n:"Kolhāpur", c:"Inde", lat:16.7, lon:74.23, v:0.1, p:0.549, pr:"tropical_dry", cl:"tropical_monsoon" },
+  { n:"Porto Velho", c:"Brésil", lat:-8.76, lon:-63.9, v:0.14, p:0.549, pr:"tropical_wet", cl:"tropical_rain" },
+  { n:"San Miguel de Tucumán", c:"Argentine", lat:-26.82, lon:-65.21, v:0.1, p:0.549, pr:"south_hemi", cl:"sh_subtropical" },
+  { n:"Kuantan", c:"Malaisie", lat:3.81, lon:103.33, v:0.14, p:0.548, pr:"tropical_wet", cl:"tropical_rain" },
+  { n:"Sevastopol", c:"Ukraine", lat:44.61, lon:33.52, v:0.14, p:0.548, pr:"med_beach", cl:"mediterranean" },
+  { n:"Nellore", c:"Inde", lat:14.45, lon:79.99, v:0.1, p:0.548, pr:"tropical_dry", cl:"tropical_monsoon" },
+  { n:"Bremen", c:"Allemagne", lat:53.08, lon:8.81, v:0.13, p:0.547, pr:"euro_city", cl:"oceanic" },
+  { n:"Wanning", c:"Chine", lat:18.8, lon:110.38, v:0.14, p:0.546, pr:"tropical_dry", cl:"tropical_savanna" },
+  { n:"Owerri", c:"Nigeria", lat:5.48, lon:7.03, v:0.14, p:0.545, pr:"tropical_wet", cl:"tropical_rain" },
+  { n:"Kota Kuala Muda", c:"Malaisie", lat:5.59, lon:100.37, v:0.14, p:0.545, pr:"tropical_wet", cl:"tropical_rain" },
+  { n:"Xinzhou", c:"Chine", lat:38.41, lon:112.73, v:0.1, p:0.545, pr:"japan", cl:"subtropical" },
+  { n:"Kalaburagi", c:"Inde", lat:17.34, lon:76.84, v:0.1, p:0.543, pr:"tropical_dry", cl:"tropical_monsoon" },
+  { n:"Tucson", c:"États-Unis", lat:32.22, lon:-110.93, v:0.13, p:0.543, pr:"us_city", cl:"desert_hot" },
+  { n:"Selayang Baru Utara", c:"Malaisie", lat:3.25, lon:101.67, v:0.14, p:0.542, pr:"tropical_wet", cl:"tropical_rain" },
+  { n:"Ajmer", c:"Inde", lat:26.45, lon:74.64, v:0.1, p:0.542, pr:"tropical_dry", cl:"tropical_monsoon" },
+  { n:"Pingdu", c:"Chine", lat:36.78, lon:119.95, v:0.1, p:0.542, pr:"japan", cl:"subtropical" },
+  { n:"Fresno", c:"États-Unis", lat:36.75, lon:-119.77, v:0.13, p:0.542, pr:"us_city", cl:"continental_warm" },
+  { n:"Mbeya", c:"Tanzanie", lat:-8.9, lon:33.45, v:0.14, p:0.542, pr:"tropical_wet", cl:"tropical_rain" },
+  { n:"Calabar", c:"Nigeria", lat:4.96, lon:8.33, v:0.14, p:0.54, pr:"tropical_wet", cl:"tropical_rain" },
+  { n:"Oujda", c:"Maroc", lat:34.68, lon:-1.91, v:0.14, p:0.54, pr:"med_beach", cl:"mediterranean" },
+  { n:"Calamba", c:"Philippines", lat:14.21, lon:121.17, v:0.14, p:0.54, pr:"tropical_dry", cl:"tropical_savanna" },
+  { n:"Novokuznetsk", c:"Russie", lat:53.76, lon:87.14, v:0.1, p:0.54, pr:"euro_city", cl:"continental_warm" },
+  { n:"Ryazan’", c:"Russie", lat:54.63, lon:39.69, v:0.1, p:0.539, pr:"euro_city", cl:"continental_warm" },
+  { n:"Ji’an", c:"Chine", lat:27.12, lon:114.98, v:0.1, p:0.539, pr:"japan", cl:"subtropical" },
+  { n:"Sahiwal", c:"Pakistan", lat:30.67, lon:73.1, v:0.1, p:0.538, pr:"middle_east", cl:"desert_cold" },
+  { n:"Mersin", c:"Turquie", lat:36.81, lon:34.64, v:0.18, p:0.538, pr:"med_beach", cl:"mediterranean" },
+  { n:"Leeds", c:"Royaume-Uni", lat:53.8, lon:-1.55, v:0.13, p:0.536, pr:"euro_city", cl:"oceanic" },
+  { n:"Guli", c:"Chine", lat:28.88, lon:120.03, v:0.1, p:0.536, pr:"japan", cl:"subtropical" },
+  { n:"Aqsu", c:"Chine", lat:41.18, lon:80.28, v:0.1, p:0.536, pr:"euro_city", cl:"continental_warm" },
+  { n:"Ebute Ikorodu", c:"Nigeria", lat:6.6, lon:3.49, v:0.14, p:0.536, pr:"tropical_wet", cl:"tropical_rain" },
+  { n:"Tanggu", c:"Chine", lat:39.02, lon:117.65, v:0.1, p:0.535, pr:"japan", cl:"subtropical" },
+  { n:"Astrakhan", c:"Russie", lat:46.35, lon:48.04, v:0.1, p:0.534, pr:"euro_city", cl:"continental_warm" },
+  { n:"Okara", c:"Pakistan", lat:30.81, lon:73.45, v:0.1, p:0.534, pr:"middle_east", cl:"desert_cold" },
+  { n:"Nansana", c:"Ouganda", lat:0.36, lon:32.53, v:0.14, p:0.533, pr:"tropical_wet", cl:"tropical_rain" },
+  { n:"Kimhae", c:"Corée du Sud", lat:35.23, lon:128.88, v:0.1, p:0.532, pr:"japan", cl:"subtropical" },
+  { n:"Ar Raqqah", c:"Syrie", lat:35.95, lon:39.01, v:0.13, p:0.532, pr:"med_beach", cl:"mediterranean" },
+  { n:"Québec", c:"Canada", lat:46.81, lon:-71.21, v:0.1, p:0.532, pr:"euro_city", cl:"continental_warm" },
+  { n:"Shangluo", c:"Chine", lat:33.87, lon:109.93, v:0.1, p:0.532, pr:"japan", cl:"subtropical" },
+  { n:"Himeji", c:"Japon", lat:34.82, lon:134.7, v:0.13, p:0.53, pr:"japan", cl:"subtropical" },
+  { n:"Ibagué", c:"Colombie", lat:4.44, lon:-75.2, v:0.13, p:0.53, pr:"tropical_wet", cl:"tropical_rain" },
+  { n:"Antwerpen", c:"Belgique", lat:51.22, lon:4.4, v:0.1, p:0.529, pr:"euro_city", cl:"oceanic" },
+  { n:"Assiut", c:"Égypte", lat:27.18, lon:31.18, v:0.1, p:0.529, pr:"middle_east", cl:"desert_hot" },
+  { n:"Qionghai", c:"Chine", lat:19.24, lon:110.46, v:0.13, p:0.528, pr:"tropical_dry", cl:"tropical_savanna" },
+  { n:"Cangzhou", c:"Chine", lat:38.31, lon:116.85, v:0.1, p:0.528, pr:"japan", cl:"subtropical" },
+  { n:"Mohāmmadpur", c:"Bangladesh", lat:24.9, lon:88.53, v:0.1, p:0.528, pr:"tropical_dry", cl:"tropical_monsoon" },
+  { n:"Surakarta", c:"Indonésie", lat:-7.56, lon:110.83, v:0.13, p:0.527, pr:"tropical_wet", cl:"tropical_rain" },
+  { n:"Beihai", c:"Chine", lat:21.48, lon:109.12, v:0.13, p:0.525, pr:"tropical_dry", cl:"tropical_savanna" },
+  { n:"Van", c:"Turquie", lat:38.49, lon:43.38, v:0.12, p:0.525, pr:"euro_city", cl:"continental_warm" },
+  { n:"Sacramento", c:"États-Unis", lat:38.58, lon:-121.49, v:0.12, p:0.525, pr:"us_city", cl:"continental_warm" },
+  { n:"Thủ Đức", c:"Vietnam", lat:10.85, lon:106.77, v:0.13, p:0.525, pr:"tropical_wet", cl:"tropical_rain" },
+  { n:"Penza", c:"Russie", lat:53.2, lon:45.0, v:0.1, p:0.524, pr:"euro_city", cl:"continental_warm" },
+  { n:"Mazār-e Sharīf", c:"Afghanistan", lat:36.71, lon:67.11, v:0.1, p:0.523, pr:"euro_city", cl:"continental_warm" },
+  { n:"Kandahār", c:"Afghanistan", lat:31.61, lon:65.71, v:0.1, p:0.523, pr:"middle_east", cl:"desert_cold" },
+  { n:"Hengshui", c:"Chine", lat:37.74, lon:115.68, v:0.1, p:0.522, pr:"japan", cl:"subtropical" },
+  { n:"Dehra Dūn", c:"Inde", lat:30.32, lon:78.03, v:0.1, p:0.522, pr:"middle_east", cl:"desert_cold" },
+  { n:"Erode", c:"Inde", lat:11.34, lon:77.73, v:0.1, p:0.522, pr:"tropical_dry", cl:"tropical_monsoon" },
+  { n:"Salta", c:"Argentine", lat:-24.81, lon:-65.42, v:0.09, p:0.521, pr:"south_hemi", cl:"sh_subtropical" },
+  { n:"Serra", c:"Brésil", lat:-20.13, lon:-40.31, v:0.13, p:0.521, pr:"tropical_dry", cl:"tropical_savanna" },
+  { n:"Qui Nhon", c:"Vietnam", lat:13.78, lon:109.22, v:0.13, p:0.519, pr:"tropical_dry", cl:"tropical_savanna" },
+  { n:"Al Fayyum", c:"Égypte", lat:29.31, lon:30.84, v:0.09, p:0.519, pr:"middle_east", cl:"desert_hot" },
+  { n:"Durgapur", c:"Inde", lat:23.52, lon:87.31, v:0.09, p:0.519, pr:"tropical_dry", cl:"tropical_monsoon" },
+  { n:"Utsunomiya", c:"Japon", lat:36.57, lon:139.88, v:0.12, p:0.519, pr:"japan", cl:"subtropical" },
+  { n:"Victoria de Durango", c:"Mexique", lat:24.02, lon:-104.66, v:0.09, p:0.519, pr:"middle_east", cl:"desert_hot" },
+  { n:"Rahim Yar Khan", c:"Pakistan", lat:28.42, lon:70.3, v:0.13, p:0.517, pr:"tropical_dry", cl:"tropical_savanna" },
+  { n:"Ulhasnagar", c:"Inde", lat:19.22, lon:73.15, v:0.09, p:0.517, pr:"tropical_dry", cl:"tropical_monsoon" },
+  { n:"Guangyuan", c:"Chine", lat:32.44, lon:105.82, v:0.09, p:0.516, pr:"japan", cl:"subtropical" },
+  { n:"Siliguri", c:"Inde", lat:26.71, lon:88.43, v:0.09, p:0.516, pr:"tropical_dry", cl:"tropical_monsoon" },
+  { n:"Nürnberg", c:"Allemagne", lat:49.45, lon:11.08, v:0.12, p:0.516, pr:"euro_city", cl:"oceanic" },
+  { n:"Ujjain", c:"Inde", lat:23.18, lon:75.78, v:0.09, p:0.515, pr:"tropical_dry", cl:"tropical_monsoon" },
+  { n:"Hannover", c:"Allemagne", lat:52.37, lon:9.73, v:0.12, p:0.515, pr:"euro_city", cl:"oceanic" },
+  { n:"Āzādshahr", c:"Iran", lat:34.79, lon:48.57, v:0.09, p:0.514, pr:"middle_east", cl:"desert_hot" },
+  { n:"Macapá", c:"Brésil", lat:0.04, lon:-51.07, v:0.13, p:0.513, pr:"tropical_wet", cl:"tropical_rain" },
+  { n:"Xianning", c:"Chine", lat:29.84, lon:114.32, v:0.09, p:0.513, pr:"japan", cl:"subtropical" },
+  { n:"Thembisa", c:"Afrique du Sud", lat:-26.0, lon:28.23, v:0.09, p:0.512, pr:"south_hemi", cl:"sh_subtropical" },
+  { n:"Matsuyama", c:"Japon", lat:33.84, lon:132.77, v:0.12, p:0.511, pr:"japan", cl:"subtropical" },
+  { n:"Campos dos Goytacazes", c:"Brésil", lat:-21.75, lon:-41.33, v:0.13, p:0.511, pr:"tropical_dry", cl:"tropical_savanna" },
+  { n:"Bilimora", c:"Inde", lat:20.77, lon:72.96, v:0.09, p:0.511, pr:"tropical_dry", cl:"tropical_monsoon" },
+  { n:"Kasur", c:"Pakistan", lat:31.12, lon:74.45, v:0.09, p:0.511, pr:"middle_east", cl:"desert_cold" },
+  { n:"Atlanta", c:"États-Unis", lat:33.75, lon:-84.39, v:0.12, p:0.511, pr:"us_city", cl:"subtropical" },
+  { n:"Aparecida de Goiânia", c:"Brésil", lat:-16.82, lon:-49.24, v:0.13, p:0.511, pr:"tropical_dry", cl:"tropical_savanna" },
+  { n:"Tonghua", c:"Chine", lat:41.72, lon:125.93, v:0.09, p:0.51, pr:"euro_city", cl:"continental_warm" },
+  { n:"Mianzhu, Deyang, Sichuan", c:"Chine", lat:31.34, lon:104.22, v:0.09, p:0.51, pr:"japan", cl:"subtropical" },
+  { n:"Naberezhnyye Chelny", c:"Russie", lat:55.73, lon:52.41, v:0.09, p:0.51, pr:"euro_city", cl:"continental_warm" }
+];
+
+const MONTHS = ["Janvier","Février","Mars","Avril","Mai","Juin","Juillet","Août","Septembre","Octobre","Novembre","Décembre"];
+const DAYS_IN_MONTH = [31,28,31,30,31,30,31,31,30,31,30,31];
+
+// ============================================================
+// 7bis. SCORE ÉCOLOGIQUE par pays (0-100, haut = propre/durable)
+// Sources: Yale EPI 2024 + IQAir PM2.5
+// ============================================================
+const ECO_COUNTRY = {
+  // Top mondial
+  "Islande":92, "Danemark":90, "Finlande":89, "Suisse":88, "Suède":87, "Norvège":86, "Autriche":85,
+  "Estonie":83, "Slovénie":82, "Luxembourg":82, "Malte":81, "Liechtenstein":85, "Saint-Marin":80,
+  // Excellent
+  "Allemagne":78, "France":76, "Royaume-Uni":78, "Pays-Bas":75, "Irlande":74, "Belgique":73,
+  "Espagne":72, "Portugal":74, "Tchéquie":71, "Slovaquie":70, "Lituanie":70, "Lettonie":71,
+  "Nouv.-Zélande":82, "Canada":75, "Australie":74, "Japon":70, "Singapour":73,
+  // Bon
+  "Italie":68, "Grèce":62, "Croatie":67, "Chypre":66, "Pologne":60, "Hongrie":62, "Roumanie":58,
+  "Bulgarie":57, "Andorre":75, "Monaco":78, "Vatican":70, "Costa Rica":78, "Uruguay":72, "Chili":65,
+  "Corée du Sud":63, "Taïwan":62, "Israël":60, "Émirats AU":58, "Qatar":55, "Macao":60, "Hong Kong":61,
+  // Moyen
+  "États-Unis":55, "Bahamas":55, "Barbade":58, "Antigua-et-Barbuda":58, "Saint-Kitts-Nevis":58,
+  "Sainte-Lucie":58, "Grenade":58, "Trinité-et-Tobago":48, "Panama":58, "Maurice":62, "Seychelles":68,
+  "Cap-Vert":55, "Bahreïn":50, "Koweït":48, "Oman":55, "Arabie saoudite":42, "Jordanie":48, "Liban":42,
+  "Tunisie":48, "Maroc":47, "Brésil":50, "Argentine":52, "Mexique":48, "Colombie":52, "Pérou":48,
+  "Équateur":52, "Bolivie":48, "Paraguay":50, "Salvador":45, "Guatemala":42, "Honduras":42, "Nicaragua":42,
+  "Cuba":50, "Rép. dominicaine":48, "Jamaïque":50, "Belize":55, "Albanie":55, "Bosnie-Herz.":42,
+  "Macédoine N.":40, "Kosovo":38, "Monténégro":58, "Serbie":48, "Turquie":42, "Géorgie":50, "Arménie":48,
+  "Azerbaïdjan":40, "Moldavie":42, "Ukraine":40, "Bélarus":42, "Russie":40,
+  // Bas
+  "Afrique du Sud":45, "Namibie":55, "Botswana":52, "Zimbabwe":40, "Zambie":40, "Mozambique":35,
+  "Madagascar":40, "Kenya":40, "Ouganda":35, "Rwanda":52, "Tanzanie":42, "Sénégal":40, "Ghana":38,
+  "Côte d'Ivoire":35, "Nigeria":25, "Cameroun":30, "Gabon":50, "Congo":35, "RD Congo":22, "Angola":30,
+  "Éthiopie":30, "Tchad":18, "Niger":20, "Mali":22, "Burkina Faso":25, "Mauritanie":25, "Soudan":20,
+  "Égypte":32, "Algérie":38, "Libye":25, "Iran":28, "Irak":18, "Syrie":18, "Yémen":15,
+  "Afghanistan":12, "Pakistan":15, "Inde":20, "Bangladesh":18, "Népal":28, "Bhoutan":62, "Sri Lanka":42,
+  "Birmanie":28, "Thaïlande":48, "Malaisie":52, "Indonésie":40, "Philippines":45, "Vietnam":35,
+  "Cambodge":35, "Laos":38, "Chine":35, "Mongolie":28, "Corée du Nord":25, "Kazakhstan":38,
+  "Ouzbékistan":32, "Kirghizistan":40, "Tadjikistan":30, "Turkménistan":25, "Brunei":58,
+  "Maldives":58, "Timor oriental":45, "Papouasie-N.-G.":40, "Fidji":55, "Salomon":48, "Vanuatu":52,
+  "Samoa":55, "Tonga":52, "Kiribati":50, "Tuvalu":50, "Nauru":40, "Micronésie":52, "Marshall":50,
+  "Palaos":65, "Comores":42, "Djibouti":35, "Érythrée":30, "Somalie":15, "Soudan du Sud":18,
+  "Lesotho":42, "Eswatini":42, "Burundi":32, "Centrafrique":25, "Malawi":38, "Bénin":35, "Togo":38,
+  "Guinée":30, "Sierra Leone":30, "Liberia":30, "Gambie":38, "Guinée-Bissau":32, "Guinée équat.":32,
+  "S. Tomé-et-Prín.":48, "Vatican":70, "Haïti":25, "Guyana":48, "Suriname":52, "Venezuela":32,
+  "Palestine":35
+};
+function ecoScore(city) { return ECO_COUNTRY[city.c] ?? 45; }
+
+// ============================================================
+// 7ter. SCORE "COOL" / DÉSIRABILITÉ — par pays (0-100)
+// Combinaison subjective : réputation, attrait culturel, qualité de l'accueil touristique
+// ============================================================
+const COOL_COUNTRY = {
+  // Top destinations rêvées
+  "Italie":95, "France":94, "Japon":94, "Islande":92, "Grèce":91, "Espagne":90, "Portugal":89,
+  "Nouv.-Zélande":90, "Suisse":88, "Croatie":85, "Maldives":92, "Maurice":80, "Seychelles":85,
+  "Norvège":85, "Vatican":75, "Monaco":78, "Saint-Marin":60,
+  // Très cool
+  "Royaume-Uni":85, "Allemagne":78, "États-Unis":85, "Thaïlande":85, "Indonésie":82, "Australie":85,
+  "Canada":82, "Autriche":80, "Pays-Bas":80, "Tchéquie":78, "Irlande":78, "Suède":78, "Danemark":78,
+  "Finlande":75, "Maroc":78, "Turquie":75, "Mexique":78, "Vietnam":75, "Corée du Sud":78,
+  "Émirats AU":72, "Singapour":75, "Belgique":72, "Hongrie":70, "Pologne":65,
+  // Cool / intéressant
+  "Argentine":75, "Pérou":75, "Chili":68, "Brésil":75, "Égypte":72, "Tunisie":65, "Jordanie":78,
+  "Oman":68, "Afrique du Sud":78, "Kenya":72, "Tanzanie":75, "Namibie":75, "Botswana":72,
+  "Cuba":72, "Rép. dominicaine":68, "Jamaïque":68, "Costa Rica":78, "Sri Lanka":72, "Cambodge":70,
+  "Laos":65, "Philippines":68, "Malaisie":68, "Hong Kong":75, "Taïwan":68, "Bali":90,
+  "Andorre":55, "Liechtenstein":55, "Malte":75, "Chypre":70, "Slovénie":70, "Estonie":65,
+  "Lettonie":58, "Lituanie":58, "Slovaquie":55, "Albanie":62, "Monténégro":70, "Bosnie-Herz.":58,
+  "Roumanie":58, "Bulgarie":58, "Géorgie":68, "Arménie":62, "Israël":68, "Liban":58, "Bahamas":75,
+  "Barbade":72, "Antigua-et-Barbuda":70, "Sainte-Lucie":70, "Grenade":65, "Cap-Vert":62, "Bhoutan":75,
+  "Népal":75, "Inde":68, "Uruguay":62, "Madagascar":65, "Maroc":78, "Belize":65, "Panama":62,
+  "Trinité-et-Tobago":55, "Saint-Kitts-Nevis":62, "Dominique":62, "Saint-Vincent":58, "Macao":62,
+  "Fidji":75, "Samoa":62, "Tonga":55, "Vanuatu":62, "Salomon":50,
+  // Moyen
+  "Brunei":48, "Guatemala":55, "Salvador":42, "Honduras":42, "Nicaragua":48, "Colombie":62,
+  "Équateur":62, "Bolivie":58, "Paraguay":42, "Sénégal":55, "Ghana":52, "Rwanda":58, "Ouganda":55,
+  "Mozambique":50, "Zambie":52, "Zimbabwe":52, "Eswatini":48, "Lesotho":45, "Gabon":42, "Cameroun":40,
+  "Côte d'Ivoire":42, "Bénin":42, "Togo":40, "Burkina Faso":35, "Mali":35, "Mauritanie":35,
+  "Algérie":42, "Russie":48, "Ukraine":48, "Bélarus":35, "Macédoine N.":50, "Serbie":55, "Moldavie":35,
+  "Kosovo":40, "Azerbaïdjan":48, "Kazakhstan":48, "Kirghizistan":52, "Ouzbékistan":62, "Tadjikistan":42,
+  "Mongolie":58, "Birmanie":55, "Timor oriental":42, "Papouasie-N.-G.":42, "Comores":42, "Kiribati":40,
+  "Palestine":35, "S. Tomé-et-Prín.":48, "Djibouti":42, "Éthiopie":52, "Bahreïn":48, "Qatar":55,
+  "Koweït":42, "Arabie saoudite":55, "Luxembourg":58,
+  // Bas (peu attractif tourisme classique)
+  "Pakistan":25, "Bangladesh":28, "Nigeria":28, "Iran":48, "Irak":15, "Égypte":72,
+  "Afghanistan":10, "Yémen":12, "Syrie":15, "Libye":18, "Soudan":18, "Soudan du Sud":12,
+  "Somalie":10, "Érythrée":18, "Centrafrique":15, "Tchad":18, "Niger":22, "RD Congo":22,
+  "Congo":28, "Angola":32, "Liberia":28, "Sierra Leone":28, "Guinée":28, "Guinée-Bissau":28,
+  "Guinée équat.":25, "Gambie":42, "Burundi":28, "Malawi":42, "Haïti":30, "Venezuela":35,
+  "Guyana":42, "Suriname":42, "Corée du Nord":25, "Turkménistan":32,
+  // Océanie reculée
+  "Tuvalu":35, "Nauru":25, "Micronésie":42, "Marshall":35, "Palaos":62, "Brunei":48
+};
+
+// Surcharges manuelles pour villes iconiques (override pays)
+const COOL_CITY = {
+  "Paris":100, "Venise":98, "Rome":98, "Londres":95, "New York":96, "Tokyo":96, "Barcelone":94,
+  "Santorin":95, "Dubaï":88, "Bangkok":85, "Las Vegas":82, "Amsterdam":88, "Florence":92, "Kyoto":94,
+  "Prague":88, "Sydney":88, "Marrakech":85, "Istanbul":85, "Athènes":85, "Bali":92, "Le Cap":82,
+  "Rio de Janeiro":88, "Reykjavík":90, "Cancún":78, "Phuket":78, "Munich":78, "Vienne":82, "Berlin":82,
+  "Madrid":85, "Lisbonne":85, "Dublin":78, "Orlando":75, "Miami":82, "Los Angeles":86, "San Francisco":86,
+  "Dubrovnik":85, "Édimbourg":78, "Copenhague":80, "Stockholm":78, "Singapour":78, "Hong Kong":78,
+  "Séoul":82, "Hanoï":68, "La Havane":75, "Buenos Aires":75, "Chamonix":85, "Zermatt":85, "Antalya":75,
+  "Petra":90, "Le Caire":75, "Mecque":70, "Malé":92, "Nice":85, "Porto":80
+};
+function coolScore(city) {
+  if (COOL_CITY[city.n]) return COOL_CITY[city.n];
+  return COOL_COUNTRY[city.c] ?? 40;
+}
+
+// ============================================================
+// 7quater. FACILITÉ D'ACCÈS / VISA — passeport français (0-100)
+// 100 = pas de visa, 70-95 = visa on arrival / e-visa simple,
+// 40-69 = visa classique ambassade, 20-39 = difficile,
+// <20 = quasi-impossible (LOI, régime restrictif)
+// ============================================================
+const VISA_COUNTRY = {
+  "France":100,"Allemagne":100,"Italie":100,"Espagne":100,"Portugal":100,"Belgique":100,
+  "Pays-Bas":100,"Luxembourg":100,"Suisse":100,"Autriche":100,"Liechtenstein":100,"Monaco":100,
+  "Vatican":100,"Saint-Marin":100,"Andorre":100,"Royaume-Uni":100,"Irlande":100,"Danemark":100,
+  "Suède":100,"Norvège":100,"Finlande":100,"Islande":100,"Pologne":100,"Tchéquie":100,
+  "Slovaquie":100,"Hongrie":100,"Slovénie":100,"Croatie":100,"Estonie":100,"Lettonie":100,
+  "Lituanie":100,"Bulgarie":100,"Roumanie":100,"Grèce":100,"Chypre":100,"Malte":100,
+  "Albanie":100,"Bosnie-Herz.":100,"Macédoine N.":100,"Monténégro":100,"Serbie":100,"Kosovo":100,
+  "Géorgie":100,"Ukraine":100,"Moldavie":100,
+  "États-Unis":95,"Canada":95,"Mexique":100,"Japon":100,"Corée du Sud":100,"Hong Kong":100,
+  "Macao":100,"Taïwan":100,"Singapour":100,"Malaisie":100,"Thaïlande":100,"Indonésie":100,
+  "Philippines":100,"Brunei":100,"Israël":100,"Maroc":100,"Tunisie":100,"Turquie":100,
+  "Afrique du Sud":100,"Botswana":100,"Namibie":100,"Maurice":100,"Seychelles":100,
+  "Brésil":100,"Argentine":100,"Chili":100,"Pérou":100,"Colombie":100,"Équateur":100,
+  "Uruguay":100,"Paraguay":100,"Bolivie":100,"Venezuela":100,"Panama":100,"Costa Rica":100,
+  "Salvador":100,"Guatemala":100,"Honduras":100,"Nicaragua":100,"Belize":100,"Bahamas":100,
+  "Barbade":100,"Antigua-et-Barbuda":100,"Saint-Kitts-Nevis":100,"Sainte-Lucie":100,
+  "Saint-Vincent":100,"Grenade":100,"Dominique":100,"Trinité-et-Tobago":100,"Jamaïque":100,
+  "Rép. dominicaine":95,"Australie":95,"Nouv.-Zélande":95,"Émirats AU":100,"Qatar":100,
+  "Bahreïn":100,"Koweït":100,"Oman":100,"Arabie saoudite":85,"Cap-Vert":95,
+  "Égypte":85,"Jordanie":85,"Kenya":80,"Tanzanie":80,"Cambodge":85,"Laos":80,
+  "Vietnam":80,"Sri Lanka":85,"Madagascar":80,"Mozambique":80,"Népal":85,"Zambie":75,
+  "Zimbabwe":75,"Ouganda":75,"Rwanda":75,"Liban":75,"Maldives":95,"Comores":75,
+  "Cuba":80,"Haïti":80,"Fidji":95,"Samoa":95,"Tonga":95,"Vanuatu":95,"Salomon":80,
+  "Papouasie-N.-G.":70,"Palaos":95,"Marshall":95,"Micronésie":95,"Kiribati":75,"Tuvalu":80,
+  "Nauru":50,"Timor oriental":80,"Mongolie":75,"Sénégal":85,"Bénin":80,
+  "Togo":75,"Mauritanie":70,"Soudan":50,"Djibouti":85,"Cameroun":70,"Gabon":75,"Ghana":75,
+  "Tadjikistan":70,"Ouzbékistan":85,"Kazakhstan":85,"Kirghizistan":85,"Azerbaïdjan":80,
+  "Inde":75,"Russie":70,"Bélarus":60,"Côte d'Ivoire":70,"Bissau":65,
+  "Chine":55,"Algérie":50,"Bhoutan":40,"Birmanie":55,"Iran":40,"Suriname":60,"Guyana":60,
+  "Niger":45,"Centrafrique":45,"Tchad":45,"Mali":40,"Burkina Faso":45,"Nigeria":50,
+  "Burundi":55,"Malawi":60,"Lesotho":55,"Eswatini":75,"Liberia":50,"Sierra Leone":55,
+  "Guinée":50,"Gambie":75,"Guinée-Bissau":55,"Guinée équat.":35,"S. Tomé-et-Prín.":75,
+  "Angola":55,"Congo":50,"RD Congo":45,"Éthiopie":75,"Soudan du Sud":40,"Palestine":60,
+  "Bangladesh":65,"Pakistan":35,
+  "Afghanistan":15,"Libye":15,"Syrie":15,"Yémen":15,"Somalie":15,"Érythrée":15,
+  "Corée du Nord":5,"Turkménistan":20,"Irak":25
+};
+function visaScore(city) { return VISA_COUNTRY[city.c] ?? 60; }
+
+// Risque pays (fallback quand la ville n'est pas dans RISK)
+const RISK_COUNTRY = {
+  "Afghanistan":2, "Irak":2, "Yémen":2, "Syrie":2, "Libye":2, "Somalie":2, "Soudan":2,
+  "Soudan du Sud":2, "Corée du Nord":2, "Centrafrique":2,
+  "Pakistan":1, "Iran":1, "Mali":1, "Burkina Faso":1, "Niger":1, "Tchad":1, "RD Congo":1,
+  "Mauritanie":1, "Érythrée":1, "Turkménistan":1, "Venezuela":1, "Haïti":1, "Birmanie":1,
+  "Bélarus":1, "Russie":1, "Nigeria":1, "Cameroun":1, "Liban":1, "Palestine":1,
+  "Éthiopie":1, "Bangladesh":1
+};
+
+// ============================================================
+// 8. COMPOSANTES DE LA PRESSION (chaque sous-score 0-100)
+// ============================================================
+// Arrivées du mois (en millions) = arrivées annuelles × coef saisonnalité ÷ 12
+function monthlyArrivals(city, m) { return city.v * PROFILES[city.pr][m] / 12; }
+
+// Lits hôteliers (milliers) — heuristique fondée sur population × intensité touristique
+// Petite ville touristique : ~5% de lits/habitant. Capitale ordinaire : ~2%.
+function beds_k(city) {
+  const visitRatio = Math.min(40, city.v / Math.max(0.001, city.p));
+  return city.p * 1000 * (0.018 + visitRatio * 0.008); // milliers de lits
+}
+
+// Zone touristique active (km²) — proxy : √population × 22, plafonné entre 5 et 100 km²
+// Cela correspond au cœur urbain où les visiteurs circulent réellement.
+function area(city) {
+  return Math.max(5, Math.min(100, Math.sqrt(Math.max(0.001, city.p)) * 22));
+}
+
+// Saturation des lits : person-nights demandés / person-nights disponibles
+// 70% → score 49 ; 100% → 70 ; 143%+ (overbooking) → 100
+function bedSaturation(city, m) {
+  const arrivals = monthlyArrivals(city, m) * 1_000_000; // personnes
+  const stay = STAY_BY_PROFILE[city.pr];
+  const supply = (beds_k(city) * 1000) * DAYS_IN_MONTH[m];
+  if (supply === 0) return 100;
+  const occRate = (arrivals * stay) / supply;
+  return Math.min(100, Math.max(0, occRate * 70));
+}
+
+// Densité touristique : visiteurs / km² / jour, log scale
+function densityScore(city, m) {
+  const monthlyV = monthlyArrivals(city, m) * 1_000_000;
+  const dailyPerKm2 = monthlyV / area(city) / DAYS_IN_MONTH[m];
+  // 10 → 18, 100 → 36, 1000 → 54, 10000 → 72, 100000 → 90
+  return Math.min(100, Math.max(0, 18 * Math.log10(dailyPerKm2 + 1)));
+}
+
+// Pression croisière : passagers/jour qui débarquent, log scale absolue
+function cruiseScore(city, m) {
+  const annual = cruiseAnnual(city);
+  if (annual === 0) return 0;
+  const lat = city.lat;
+  let seasonal;
+  if (lat > 30)      seasonal = [0.4,0.4,0.5,0.8,1.2,1.5,1.7,1.7,1.3,0.9,0.4,0.3]; // hémi N (été méd/baltique)
+  else if (lat < -10) seasonal = [1.4,1.4,1.2,1.0,0.8,0.6,0.6,0.7,0.9,1.0,1.2,1.3]; // hémi S (été austral)
+  else                seasonal = [1.4,1.4,1.3,1.1,0.9,0.7,0.6,0.7,0.9,1.1,1.3,1.4]; // Caraïbes (hiver)
+  const monthlyPax = (annual * 1_000_000 * seasonal[m]) / 12;
+  const dailyPax = monthlyPax / DAYS_IN_MONTH[m];
+  // 100 pax/j → 44 ; 1k → 66 ; 10k → 88
+  return Math.min(100, Math.max(0, 22 * Math.log10(dailyPax + 1)));
+}
+
+// Notoriété : ne pénalise que les destinations vraiment iconiques (fame > 60)
+// Fame 60 → 0, fame 80 → 50, fame 100 → 100
+function fameComponent(city) {
+  const f = fameScore(city);
+  return Math.max(0, Math.min(100, (f - 60) * 2.5));
+}
+
+// ============================================================
+// 9. PRESSION COMPOSITE (0-100)
+// ============================================================
+function compositePressure(city, m) {
+  const bs = bedSaturation(city, m);
+  const ds = densityScore(city, m);
+  const cs = cruiseScore(city, m);
+  const fs = fameComponent(city);
+  return 0.40 * bs + 0.30 * ds + 0.15 * cs + 0.15 * fs;
+}
+
+// ============================================================
+// 10. MÉTÉO & CONFORT
+// ============================================================
+function climateData(city, m) {
+  const cl = CLIMATES[city.cl] || CLIMATES.oceanic;
+  return { temp: cl.t[m], precip: cl.p[m] };
+}
+// Confort thermique 0-100 : pic à 22°C, décroît au-delà de ±6°C
+function tempComfort(temp) {
+  const dist = Math.abs(temp - 22);
+  return Math.max(0, 100 - dist * dist * 0.6);
+}
+// Pénalité pluie 0-100 (100 = parfaitement sec)
+function precipScore(precip) {
+  // 0 mm → 100, 100 mm → 50, 250+ mm → 0
+  return Math.max(0, Math.min(100, 100 - precip * 0.4));
+}
+
+// ============================================================
+// 11. SCORE GO (0-100) : grand = recommandé
+// ============================================================
+// Attractivité (notoriété + volume) : utilisée comme léger boost dans le score,
+// pas comme un filtre. On VEUT que les destinations émergentes ressortent.
+function attractScore(city) {
+  const f = fameScore(city);
+  const vol = Math.max(0, 30 + 18 * Math.log10(Math.max(0.001, city.v)));
+  return Math.max(0, Math.min(100, Math.max(f, vol)));
+}
+
+// Niveau de risque pour le tourisme classique (sources : conseils Quai d'Orsay,
+// FCDO, US State Dept). 0 = OK, 1 = tendu/restrictif, 2 = formellement déconseillé.
+const RISK = {
+  // Niveau 2 — déconseillé sauf raison impérieuse (zones de guerre / régimes fermés)
+  "Mogadiscio":2, "Sanaa":2, "Kaboul":2, "Damas":2, "Bagdad":2, "Tripoli":2,
+  "Juba":2, "Pyongyang":2, "Bangui":2, "Khartoum":2, "Kyiv":2,
+  // Niveau 1 — instable, voyage compliqué (formalités, sécurité, services)
+  "Achgabat":1, "Port-au-Prince":1, "Caracas":1, "N'Djamena":1, "Bamako":1,
+  "Ouagadougou":1, "Niamey":1, "Asmara":1, "Conakry":1, "Bissau":1,
+  "Téhéran":1, "Ramallah":1, "Nouakchott":1, "Yamoussoukro":1,
+  "Freetown":1, "Monrovia":1, "Kinshasa":1, "Beyrouth":1, "Moscou":1, "Minsk":1
+};
+function riskLevel(city) { return RISK[city.n] ?? RISK_COUNTRY[city.c] ?? 0; }
+function safetyFactor(city) {
+  const r = riskLevel(city);
+  if (r === 2) return 0.05;  // exclus de fait des reco
+  if (r === 1) return 0.55;  // possible mais avec un malus
+  return 1.0;
+}
+
+// Pondération : Cool + Eco + Visa intégrés au Score Go
+function goScore(city, m) {
+  const pressure = compositePressure(city, m);
+  const { temp, precip } = climateData(city, m);
+  const cool = coolScore(city);
+  const eco = ecoScore(city);
+  const visa = visaScore(city);
+  const base =
+    0.28 * (100 - pressure) +
+    0.22 * cool +
+    0.12 * tempComfort(temp) +
+    0.08 * precipScore(precip) +
+    0.15 * eco +
+    0.15 * visa;
+  return Math.round(base * safetyFactor(city));
+}
+
+// ============================================================
+// 12. HELPERS UI
+// ============================================================
+function monthlyVisitorsRaw(city, m) { return monthlyArrivals(city, m) * 1_000_000; }
+function fmt(n) {
+  if (n >= 1_000_000) return (n / 1_000_000).toFixed(n >= 10_000_000 ? 0 : 1) + 'M';
+  if (n >= 1_000)     return Math.round(n / 1_000) + 'k';
+  return Math.round(n).toString();
+}
+// ---- Palette unique rouge→vert, 10 paliers de 10 points
+// 0-9 / 10-19 / 20-29 / 30-39 / 40-49 / 50-59 / 60-69 / 70-79 / 80-89 / 90-100
+const PAL_RG = [
+  "#7f1d1d", // 0-9   rouge très foncé
+  "#b91c1c", // 10-19 rouge foncé
+  "#ef4444", // 20-29 rouge
+  "#f97316", // 30-39 orange
+  "#f59e0b", // 40-49 ambre
+  "#eab308", // 50-59 jaune
+  "#a3e635", // 60-69 vert-jaune
+  "#65a30d", // 70-79 vert lime
+  "#16a34a", // 80-89 vert
+  "#15803d", // 90-100 vert foncé
+];
+function palColor(s) {
+  const v = Math.max(0, Math.min(100, s));
+  return PAL_RG[Math.min(9, Math.floor(v / 10))];
+}
+
+function goColor(s)       { return palColor(s); }
+function ecoColor(s)      { return palColor(s); }
+function visaColor(s)     { return palColor(s); }
+function coolColor(s)     { return palColor(s); }
+function pressureColor(s) { return palColor(100 - s); } // haut = mauvais
+function tempColor(t) {
+  // confort thermique (proche de 22°C = vert)
+  return palColor(tempComfort(t));
+}
+function priceColor(p) {
+  // 0€/j → 100 (vert), 200€+/j → 0 (rouge)
+  return palColor(Math.max(0, 100 - p * 0.5));
+}
+
+// ============================================================
+// 13. CARTE
+// ============================================================
+const map = L.map('map', { worldCopyJump: true, zoomControl: true }).setView([25, 10], 2);
+L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+  attribution: '© OpenStreetMap, © CARTO',
+  maxZoom: 18
+}).addTo(map);
+
+const markers = [];
+let currentMode = 'go';
+let currentMonth = 4;
+
+// État des filtres
+const FILTERS = { minGo:0, minCool:0, minEco:0, minVisa:0, maxPress:100, maxPrice:300, includeRisk:false };
+function passesFilter(city, m) {
+  const x = metricsFor(city, m);
+  if (x.go < FILTERS.minGo) return false;
+  if (x.cool < FILTERS.minCool) return false;
+  if (x.eco < FILTERS.minEco) return false;
+  if (x.visa < FILTERS.minVisa) return false;
+  if (x.pressure > FILTERS.maxPress) return false;
+  if (x.price > FILTERS.maxPrice) return false;
+  if (!FILTERS.includeRisk && riskLevel(city) > 0) return false;
+  return true;
+}
+
+function metricsFor(city, m) {
+  const g = goScore(city, m);
+  const pr = compositePressure(city, m);
+  const w = climateData(city, m);
+  return {
+    go: g, pressure: pr, temp: w.temp, precip: w.precip,
+    price: getPrice(city.c), eco: ecoScore(city), cool: coolScore(city),
+    visa: visaScore(city)
+  };
+}
+
+function colorForMode(city, m) {
+  const x = metricsFor(city, m);
+  switch (currentMode) {
+    case 'go':       return goColor(x.go);
+    case 'cool':     return coolColor(x.cool);
+    case 'eco':      return ecoColor(x.eco);
+    case 'visa':     return visaColor(x.visa);
+    case 'pressure': return pressureColor(x.pressure);
+    case 'temp':     return tempColor(x.temp);
+    case 'price':    return priceColor(x.price);
+  }
+}
+
+function popupHTML(city, m) {
+  const x = metricsFor(city, m);
+  const r = riskLevel(city);
+  const risk = r === 2 ? '<br><span style="color:#dc2626;font-weight:600">⚠ Déconseillé (sécurité)</span>'
+             : r === 1 ? '<br><span style="color:#ea580c;font-weight:600">⚠ Voyage difficile</span>'
+             : '';
+  return `<strong>${city.n}</strong><br>${city.c}<br>
+    Go : <strong>${x.go}</strong> · Cool : <strong>${x.cool}</strong> · Eco : <strong>${x.eco}</strong> · Visa : <strong>${x.visa}</strong><br>
+    Pression : ${Math.round(x.pressure)} · ${Math.round(x.temp)}°C · ${x.price}€/j<br>
+    ${fmt(monthlyVisitorsRaw(city, m))} visiteurs ce mois${risk}`;
+}
+
+function renderMap(m) {
+  markers.forEach(mk => map.removeLayer(mk));
+  markers.length = 0;
+  let kept = 0;
+  CITIES.forEach(city => {
+    if (!passesFilter(city, m)) return;
+    kept++;
+    const v = monthlyVisitorsRaw(city, m);
+    const radius = 3 + Math.max(0, Math.log10(v + 1)) * 1.3;
+    const marker = L.circleMarker([city.lat, city.lon], {
+      radius,
+      fillColor: colorForMode(city, m),
+      color: '#fff',
+      weight: 1,
+      fillOpacity: 0.85
+    }).addTo(map);
+    marker.bindPopup(popupHTML(city, m));
+    marker.on('click', () => openModal(city, m));
+    markers.push(marker);
+  });
+  document.getElementById('filterCount').textContent = kept + ' destination' + (kept>1?'s':'');
+}
+
+// ============================================================
+// 14. SIDEBAR
+// ============================================================
+function renderSidebar(m) {
+  const scored = CITIES.filter(c => passesFilter(c, m)).map(c => ({ ...c, ...metricsFor(c, m) }));
+  let topTitle, bottomTitle, sortKey, reverseTop;
+  switch (currentMode) {
+    case 'go':       topTitle="Meilleures destinations"; bottomTitle="À éviter ce mois"; sortKey="go"; reverseTop=true; break;
+    case 'cool':     topTitle="Plus cool / iconiques"; bottomTitle="Moins désirables"; sortKey="cool"; reverseTop=true; break;
+    case 'eco':      topTitle="Plus écolos"; bottomTitle="Plus polluants"; sortKey="eco"; reverseTop=true; break;
+    case 'visa':     topTitle="Accès le plus simple"; bottomTitle="Accès le plus difficile"; sortKey="visa"; reverseTop=true; break;
+    case 'pressure': topTitle="Plus saturées"; bottomTitle="Plus tranquilles"; sortKey="pressure"; reverseTop=true; break;
+    case 'temp':     topTitle="Plus chaud"; bottomTitle="Plus froid"; sortKey="temp"; reverseTop=true; break;
+    case 'price':    topTitle="Plus cher"; bottomTitle="Plus abordable"; sortKey="price"; reverseTop=true; break;
+  }
+  document.getElementById('topTitle').textContent = topTitle;
+  document.getElementById('bottomTitle').textContent = bottomTitle;
+  const top = [...scored].sort((a, b) => reverseTop ? b[sortKey] - a[sortKey] : a[sortKey] - b[sortKey]).slice(0, 8);
+  const bottom = [...scored].sort((a, b) => reverseTop ? a[sortKey] - b[sortKey] : b[sortKey] - a[sortKey]).slice(0, 8);
+  document.getElementById('topList').innerHTML = top.map(c => rowHTML(c)).join('');
+  document.getElementById('bottomList').innerHTML = bottom.map(c => rowHTML(c)).join('');
+  document.querySelectorAll('.city-row').forEach(el => {
+    el.addEventListener('click', () => {
+      const city = CITIES.find(c => c.n === el.dataset.city);
+      openModal(city, currentMonth);
+    });
+  });
+  // Légende
+  const labels = {
+    go: ["À éviter","Moyen","Idéal"],
+    cool: ["Discret","Sympa","Iconique"],
+    eco: ["Pollué","Moyen","Propre"],
+    visa: ["Difficile","Visa simple","Sans visa"],
+    pressure: ["Tranquille","Modéré","Saturé"],
+    temp: ["Froid","Tempéré","Chaud"],
+    price: ["Bon marché","Moyen","Très cher"]
+  }[currentMode];
+  document.getElementById('legendLabels').innerHTML = labels.map(x=>`<span>${x}</span>`).join('');
+  document.getElementById('legendBar').className = 'legend-bar ' + ((currentMode==='go'||currentMode==='cool'||currentMode==='eco'||currentMode==='visa') ? 'go' : 'pressure');
+  const titles = { go:"Score Go", cool:"Cool / désirabilité", eco:"Score écologique", visa:"Visa / facilité d'accès", pressure:"Pression touristique", temp:"Température", price:"Prix /jour" };
+  document.getElementById('legendTitle').textContent = titles[currentMode];
+}
+
+function rowHTML(c) {
+  let display, color;
+  switch (currentMode) {
+    case 'go':       display=c.go;                     color=goColor(c.go); break;
+    case 'cool':     display=c.cool;                   color=coolColor(c.cool); break;
+    case 'eco':      display=c.eco;                    color=ecoColor(c.eco); break;
+    case 'visa':     display=c.visa;                   color=visaColor(c.visa); break;
+    case 'pressure': display=Math.round(c.pressure);   color=pressureColor(c.pressure); break;
+    case 'temp':     display=Math.round(c.temp)+'°';   color=tempColor(c.temp); break;
+    case 'price':    display=c.price+'€';              color=priceColor(c.price); break;
+  }
+  return `<div class="city-row" data-city="${c.n}" style="border-left-color:${color}">
+    <div><div class="name">${c.n}</div><div class="country">${c.c}</div></div>
+    <div class="score" style="color:${color}">${display}</div>
+  </div>`;
+}
+
+// ============================================================
+// 15. MODAL
+// ============================================================
+let weatherChartInstance = null;
+let goChartInstance = null;
+
+function openModal(city, m) {
+  document.getElementById('modalCity').textContent = city.n;
+  document.getElementById('modalCountry').textContent = city.c;
+  const x = metricsFor(city, m);
+  const gEl = document.getElementById('mGo');
+  gEl.textContent = x.go; gEl.style.color = goColor(x.go);
+  const cEl = document.getElementById('mCool');
+  cEl.textContent = x.cool; cEl.style.color = coolColor(x.cool);
+  const eEl = document.getElementById('mEco');
+  eEl.textContent = x.eco; eEl.style.color = ecoColor(x.eco);
+  const vEl = document.getElementById('mVisa');
+  vEl.textContent = x.visa; vEl.style.color = visaColor(x.visa);
+  const pEl = document.getElementById('mPressure');
+  pEl.textContent = Math.round(x.pressure); pEl.style.color = pressureColor(x.pressure);
+  document.getElementById('mMonthly').textContent = fmt(monthlyVisitorsRaw(city, m));
+  document.getElementById('mTemp').textContent = Math.round(x.temp) + '°C';
+  const prEl = document.getElementById('mPrice');
+  prEl.textContent = x.price + '€'; prEl.style.color = priceColor(x.price);
+
+  // Décomposition
+  const bs = bedSaturation(city, m);
+  const ds = densityScore(city, m);
+  const cs = cruiseScore(city, m);
+  const fs = fameComponent(city);
+  setBar('bBeds', 'vBeds', bs);
+  setBar('bDens', 'vDens', ds);
+  setBar('bCruise', 'vCruise', cs);
+  setBar('bFame', 'vFame', fs);
+
+  // Charts
+  const monthsShort = MONTHS.map(x => x.slice(0,3));
+  const goes   = MONTHS.map((_,i) => goScore(city,i));
+  const temps  = MONTHS.map((_,i) => CLIMATES[city.cl].t[i]);
+  const precs  = MONTHS.map((_,i) => CLIMATES[city.cl].p[i]);
+
+  if (weatherChartInstance) weatherChartInstance.destroy();
+  weatherChartInstance = new Chart(document.getElementById('weatherChart').getContext('2d'), {
+    data: {
+      labels: monthsShort,
+      datasets: [
+        { type:'bar', label:'Précipitations (mm)', data: precs, backgroundColor:'#60a5fa', yAxisID:'y1', borderRadius:3 },
+        { type:'line', label:'Température (°C)', data: temps, borderColor:'#dc2626', backgroundColor:'#dc2626', tension:0.3, yAxisID:'y', pointRadius:3 }
+      ]
+    },
+    options: {
+      responsive: true,
+      plugins: { legend: { position:'bottom', labels: { color:'#475569', font:{size:11} } } },
+      scales: {
+        x: { ticks: { color:'#64748b' }, grid: { display:false } },
+        y: { position:'left', title:{display:true,text:'°C',color:'#dc2626'}, ticks: { color:'#64748b' }, grid: { color:'#e2e8f0' } },
+        y1: { position:'right', title:{display:true,text:'mm',color:'#3b82f6'}, ticks: { color:'#64748b' }, grid: { display:false }, beginAtZero:true }
+      }
+    }
+  });
+
+  if (goChartInstance) goChartInstance.destroy();
+  goChartInstance = new Chart(document.getElementById('goChart').getContext('2d'), {
+    type: 'bar',
+    data: {
+      labels: monthsShort,
+      datasets: [{ data: goes, backgroundColor: goes.map(g => goColor(g)), borderRadius:4 }]
+    },
+    options: {
+      responsive: true,
+      plugins: { legend: { display:false }, tooltip:{ callbacks:{ label: ctx => 'Score Go : ' + ctx.parsed.y + '/100' } } },
+      scales: {
+        x: { ticks: { color:'#64748b' }, grid: { display:false } },
+        y: { ticks: { color:'#64748b' }, grid: { color:'#e2e8f0' }, max:100 }
+      }
+    }
+  });
+
+  // Verdict basé sur Go
+  const verdict = document.getElementById('verdict');
+  const ranked = goes.map((s,i)=>({s,i})).sort((a,b)=>b.s-a.s);
+  const best = ranked.slice(0,3).map(x=>MONTHS[x.i]).join(', ');
+  const worst = ranked.slice(-3).reverse().map(x=>MONTHS[x.i]).join(', ');
+  let cls='good', txt='';
+  if (x.go >= 65) {
+    cls='good';
+    txt = `Bon moment pour ${city.n}. Meilleurs mois : <strong>${best}</strong>.`;
+  } else if (x.go >= 45) {
+    cls='medium';
+    txt = `Période mitigée à ${city.n} en ${MONTHS[m]}. Préférez : <strong>${best}</strong>. À éviter : <strong>${worst}</strong>.`;
+  } else {
+    cls='bad';
+    txt = `Pas idéal en ${MONTHS[m]} (foule, météo ou prix). Optez plutôt pour : <strong>${best}</strong>.`;
+  }
+  verdict.className = 'verdict ' + cls;
+  verdict.innerHTML = txt;
+
+  document.getElementById('modal').classList.add('active');
+}
+
+function setBar(barId, valId, v) {
+  const pct = Math.max(0, Math.min(100, v));
+  const el = document.getElementById(barId);
+  el.style.width = pct + '%';
+  el.style.background = pressureColor(pct);
+  document.getElementById(valId).textContent = Math.round(pct);
+}
+
+function closeModal() { document.getElementById('modal').classList.remove('active'); }
+document.getElementById('modal').addEventListener('click', e => { if (e.target.id === 'modal') closeModal(); });
+
+// ============================================================
+// 16. INIT
+// ============================================================
+const slider = document.getElementById('monthSlider');
+const monthLabel = document.getElementById('monthLabel');
+const modeSelect = document.getElementById('modeSelect');
+function update() {
+  currentMonth = parseInt(slider.value) - 1;
+  monthLabel.textContent = MONTHS[currentMonth];
+  renderMap(currentMonth);
+  renderSidebar(currentMonth);
+}
+slider.addEventListener('input', update);
+modeSelect.addEventListener('change', () => { currentMode = modeSelect.value; update(); });
+
+// ---- Filtres
+const FILTER_INPUTS = [
+  ['fGo','vfGo','minGo', v => v],
+  ['fCool','vfCool','minCool', v => v],
+  ['fEco','vfEco','minEco', v => v],
+  ['fVisa','vfVisa','minVisa', v => v],
+  ['fPress','vfPress','maxPress', v => v],
+  ['fPrice','vfPrice','maxPrice', v => v + '€'],
+];
+FILTER_INPUTS.forEach(([id, vid, key, disp]) => {
+  const inp = document.getElementById(id);
+  inp.addEventListener('input', () => {
+    const val = parseInt(inp.value);
+    FILTERS[key] = val;
+    document.getElementById(vid).textContent = disp(val);
+    update();
+  });
+});
+const riskChk = document.getElementById('fRisk');
+riskChk.addEventListener('change', () => { FILTERS.includeRisk = riskChk.checked; update(); });
+document.getElementById('fReset').addEventListener('click', () => {
+  Object.assign(FILTERS, { minGo:0, minCool:0, minEco:0, minVisa:0, maxPress:100, maxPrice:300, includeRisk:false });
+  ['fGo','fCool','fEco','fVisa'].forEach(id => { document.getElementById(id).value = 0; });
+  document.getElementById('fPress').value = 100;
+  document.getElementById('fPrice').value = 300;
+  riskChk.checked = false;
+  ['vfGo','vfCool','vfEco','vfVisa'].forEach(id => { document.getElementById(id).textContent = '0'; });
+  document.getElementById('vfPress').textContent = '100';
+  document.getElementById('vfPrice').textContent = '300€';
+  update();
+});
+
+update();
+</script>
+</body>
+</html>
